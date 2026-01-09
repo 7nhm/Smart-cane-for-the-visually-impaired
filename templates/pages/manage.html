@@ -1,0 +1,1292 @@
+{% extends "base.html" %}
+{% block title %} Quản lý khuôn mặt {% endblock %}
+
+{% block content %}
+<style>
+    :root {
+        --primary-color: #4f46e5;
+        --success-color: #10b981;
+        --danger-color: #ef4444;
+        --warning-color: #f59e0b;
+        --info-color: #3b82f6;
+        --light-bg: #f8fafc;
+        --card-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+        --card-hover-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    }
+
+    .manage-container {
+        padding: 1.5rem;
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+    
+    /* Header Styles */
+    .header-section {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 16px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        color: white;
+        box-shadow: 0 20px 40px rgba(102, 126, 234, 0.15);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .header-section::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM34 90c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm56-76c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM12 86c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm28-65c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm23-11c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-6 60c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm29 22c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zM32 63c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm57-13c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-9-21c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM60 91c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM35 41c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM12 60c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2z' fill='%23ffffff' fill-opacity='0.1' fill-rule='evenodd'/%3E%3C/svg%3E");
+        opacity: 0.1;
+    }
+    
+    .header-content {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .header-title h1 {
+        margin: 0 0 0.5rem 0;
+        font-size: 1.875rem;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    
+    .header-title p {
+        margin: 0;
+        opacity: 0.9;
+        font-size: 0.95rem;
+    }
+    
+    .stats-grid {
+        display: flex;
+        gap: 1.5rem;
+        margin-top: 1.5rem;
+    }
+    
+    .stat-item {
+        background: rgba(255, 255, 255, 0.15);
+        backdrop-filter: blur(10px);
+        padding: 1rem 1.5rem;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        min-width: 180px;
+    }
+    
+    .stat-icon {
+        background: rgba(255, 255, 255, 0.2);
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+    }
+    
+    .stat-info h3 {
+        margin: 0;
+        font-size: 1.5rem;
+        font-weight: 700;
+    }
+    
+    .stat-info p {
+        margin: 0.25rem 0 0 0;
+        font-size: 0.875rem;
+        opacity: 0.8;
+    }
+    
+    .add-btn {
+        background: white;
+        color: var(--primary-color);
+        border: none;
+        padding: 0.875rem 1.75rem;
+        border-radius: 12px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 6px rgba(79, 70, 229, 0.25);
+    }
+    
+    .add-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 25px rgba(79, 70, 229, 0.3);
+    }
+    
+    /* Faces Grid */
+    .faces-section {
+        background: white;
+        border-radius: 16px;
+        padding: 1.5rem;
+        box-shadow: var(--card-shadow);
+    }
+    
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid var(--light-bg);
+    }
+    
+    .section-header h2 {
+        margin: 0;
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #1e293b;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    
+    .controls {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+    }
+    
+    .sync-btn {
+        background: var(--info-color);
+        color: white;
+        border: none;
+        padding: 0.625rem 1.25rem;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.3s ease;
+    }
+    
+    .sync-btn:hover {
+        background: #2563eb;
+        transform: translateY(-1px);
+    }
+    
+    .search-box {
+        position: relative;
+        min-width: 250px;
+    }
+    
+    .search-box input {
+        width: 100%;
+        padding: 0.625rem 1rem 0.625rem 2.5rem;
+        border: 2px solid #e2e8f0;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        transition: all 0.3s ease;
+    }
+    
+    .search-box input:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    }
+    
+    .search-box i {
+        position: absolute;
+        left: 1rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #94a3b8;
+    }
+    
+    .faces-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 1.5rem;
+    }
+    
+    /* Face Card */
+    .face-card {
+        background: white;
+        border-radius: 16px;
+        overflow: hidden;
+        transition: all 0.3s ease;
+        border: 1px solid #e2e8f0;
+        position: relative;
+    }
+    
+    .face-card:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--card-hover-shadow);
+        border-color: #cbd5e1;
+    }
+    
+    .face-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, var(--primary-color), var(--info-color));
+    }
+    
+    .face-image-container {
+        position: relative;
+        height: 220px;
+        overflow: hidden;
+    }
+    
+    .face-image {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.5s ease;
+    }
+    
+    .face-card:hover .face-image {
+        transform: scale(1.05);
+    }
+    
+    .face-overlay {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: linear-gradient(transparent, rgba(0, 0, 0, 0.7));
+        padding: 1rem;
+        color: white;
+        transform: translateY(100%);
+        transition: transform 0.3s ease;
+    }
+    
+    .face-card:hover .face-overlay {
+        transform: translateY(0);
+    }
+    
+    .face-info {
+        padding: 1.5rem;
+    }
+    
+    .face-name {
+        margin: 0 0 1rem 0;
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #1e293b;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .face-id {
+        background: var(--light-bg);
+        color: #64748b;
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-family: monospace;
+    }
+    
+    .face-details {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+    
+    .detail-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+    
+    .detail-icon {
+        color: var(--primary-color);
+        font-size: 1rem;
+        min-width: 20px;
+        text-align: center;
+    }
+    
+    .detail-text {
+        flex: 1;
+    }
+    
+    .detail-label {
+        font-size: 0.75rem;
+        color: #64748b;
+        margin-bottom: 0.25rem;
+        font-weight: 500;
+    }
+    
+    .detail-value {
+        font-size: 0.875rem;
+        color: #1e293b;
+        font-weight: 500;
+    }
+    
+    .face-actions {
+        padding: 1rem 1.5rem;
+        border-top: 1px solid #e2e8f0;
+        display: flex;
+        gap: 0.75rem;
+    }
+    
+    .action-btn {
+        flex: 1;
+        padding: 0.625rem;
+        border: none;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        transition: all 0.2s ease;
+    }
+    
+    .delete-btn {
+        background: var(--danger-color);
+        color: white;
+    }
+    
+    .delete-btn:hover {
+        background: #dc2626;
+        transform: translateY(-1px);
+    }
+    
+    /* Empty State */
+    .empty-state {
+        grid-column: 1 / -1;
+        text-align: center;
+        padding: 4rem 2rem;
+        background: white;
+        border-radius: 16px;
+        border: 2px dashed #e2e8f0;
+    }
+    
+    .empty-icon {
+        font-size: 4rem;
+        color: #cbd5e1;
+        margin-bottom: 1.5rem;
+    }
+    
+    .empty-state h3 {
+        margin: 0 0 0.75rem 0;
+        color: #475569;
+        font-size: 1.5rem;
+        font-weight: 600;
+    }
+    
+    .empty-state p {
+        margin: 0 0 2rem 0;
+        color: #94a3b8;
+        max-width: 400px;
+        margin: 0 auto 2rem auto;
+    }
+    
+    /* Modal */
+    .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(15, 23, 42, 0.8);
+        backdrop-filter: blur(4px);
+        z-index: 1000;
+        animation: fadeIn 0.3s ease-out;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+    
+    .modal-content {
+        background: white;
+        width: 520px;
+        max-width: 90%;
+        margin: 2rem auto;
+        border-radius: 20px;
+        position: relative;
+        animation: slideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        overflow: hidden;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    }
+    
+    @keyframes slideDown {
+        from { transform: translateY(-30px) scale(0.95); opacity: 0; }
+        to { transform: translateY(0) scale(1); opacity: 1; }
+    }
+    
+    .modal-header {
+        background: linear-gradient(135deg, var(--primary-color), #7c3aed);
+        padding: 1.5rem 2rem;
+        color: white;
+        position: relative;
+    }
+    
+    .modal-header h2 {
+        margin: 0;
+        font-size: 1.5rem;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    
+    .close-modal {
+        position: absolute;
+        top: 1.25rem;
+        right: 1.25rem;
+        background: rgba(255, 255, 255, 0.2);
+        border: none;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        color: white;
+        font-size: 1.25rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+    }
+    
+    .close-modal:hover {
+        background: rgba(255, 255, 255, 0.3);
+        transform: rotate(90deg);
+    }
+    
+    .modal-body {
+        padding: 2rem;
+        max-height: calc(90vh - 180px);
+        overflow-y: auto;
+    }
+    
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+    
+    .form-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        color: #475569;
+        font-weight: 500;
+        font-size: 0.875rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .required {
+        color: var(--danger-color);
+    }
+    
+    .form-control {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border: 2px solid #e2e8f0;
+        border-radius: 10px;
+        font-size: 0.95rem;
+        transition: all 0.3s ease;
+        background: var(--light-bg);
+    }
+    
+    .form-control:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        background: white;
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    }
+    
+    .file-upload {
+        border: 2px dashed #cbd5e1;
+        padding: 2rem;
+        text-align: center;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        background: var(--light-bg);
+    }
+    
+    .file-upload:hover {
+        border-color: var(--primary-color);
+        background: rgba(79, 70, 229, 0.05);
+    }
+    
+    .file-upload i {
+        font-size: 2.5rem;
+        color: var(--primary-color);
+        margin-bottom: 1rem;
+    }
+    
+    .image-preview {
+        margin-top: 1rem;
+        border-radius: 10px;
+        overflow: hidden;
+        border: 2px solid #e2e8f0;
+    }
+    
+    .preview-image {
+        width: 100%;
+        max-height: 200px;
+        object-fit: cover;
+    }
+    
+    .modal-footer {
+        padding: 1.5rem 2rem;
+        background: var(--light-bg);
+        border-top: 1px solid #e2e8f0;
+        display: flex;
+        gap: 1rem;
+    }
+    
+    .btn {
+        flex: 1;
+        padding: 0.875rem 1.5rem;
+        border: none;
+        border-radius: 10px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-primary {
+        background: var(--primary-color);
+        color: white;
+    }
+    
+    .btn-primary:hover:not(:disabled) {
+        background: #4338ca;
+        transform: translateY(-2px);
+        box-shadow: 0 10px 25px rgba(79, 70, 229, 0.3);
+    }
+    
+    .btn-secondary {
+        background: white;
+        color: #475569;
+        border: 2px solid #e2e8f0;
+    }
+    
+    .btn-secondary:hover {
+        border-color: #cbd5e1;
+        background: var(--light-bg);
+    }
+    
+    .btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none !important;
+    }
+    
+    /* Notification */
+    .notification {
+        position: fixed;
+        top: 1.5rem;
+        right: 1.5rem;
+        background: white;
+        padding: 1rem 1.5rem;
+        border-radius: 12px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        z-index: 1100;
+        animation: slideInRight 0.3s ease-out;
+        border-left: 4px solid var(--success-color);
+        min-width: 300px;
+    }
+    
+    .notification.error {
+        border-left-color: var(--danger-color);
+    }
+    
+    .notification.warning {
+        border-left-color: var(--warning-color);
+    }
+    
+    @keyframes slideInRight {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+    
+    .notification-icon {
+        font-size: 1.5rem;
+    }
+    
+    .notification.success .notification-icon {
+        color: var(--success-color);
+    }
+    
+    .notification.error .notification-icon {
+        color: var(--danger-color);
+    }
+    
+    .notification-content {
+        flex: 1;
+    }
+    
+    .notification-title {
+        font-weight: 600;
+        color: #1e293b;
+        margin-bottom: 0.25rem;
+    }
+    
+    .notification-message {
+        color: #64748b;
+        font-size: 0.875rem;
+    }
+    
+    .notification-close {
+        background: none;
+        border: none;
+        color: #94a3b8;
+        cursor: pointer;
+        font-size: 1rem;
+        padding: 0.25rem;
+        border-radius: 4px;
+    }
+    
+    .notification-close:hover {
+        background: var(--light-bg);
+    }
+    
+    /* Loading States */
+    .loading {
+        position: relative;
+        pointer-events: none;
+    }
+    
+    .loading::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.8);
+        border-radius: inherit;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--primary-color);
+    }
+    
+    /* Responsive */
+    @media (max-width: 1024px) {
+        .faces-grid {
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        }
+        
+        .stats-grid {
+            flex-wrap: wrap;
+        }
+    }
+    
+    @media (max-width: 768px) {
+        .manage-container {
+            padding: 1rem;
+        }
+        
+        .header-content {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 1.5rem;
+        }
+        
+        .controls {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        
+        .search-box {
+            min-width: auto;
+        }
+        
+        .modal-content {
+            width: 95%;
+            margin: 1rem auto;
+        }
+    }
+</style>
+
+<div class="manage-container">
+    <!-- Header Section -->
+    <div class="header-section">
+        <div class="header-content">
+            <div class="header-title">
+                <h1>
+                    <i class="fas fa-id-card"></i>
+                    Quản lý khuôn mặt
+                </h1>
+                <p>Quản lý và xem tất cả khuôn mặt trong hệ thống nhận diện</p>
+                
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-icon">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3>{{ faces|length }}</h3>
+                            <p>Tổng số khuôn mặt</p>
+                        </div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-icon">
+                            <i class="fas fa-database"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3>{{ cache_version }}</h3>
+                            <p>Phiên bản cache</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <button class="add-btn" onclick="showAddModal()">
+                <i class="fas fa-plus-circle"></i>
+                Thêm khuôn mặt mới
+            </button>
+        </div>
+    </div>
+    
+    <!-- Faces Section -->
+    <div class="faces-section">
+        <div class="section-header">
+            <h2>
+                <i class="fas fa-th-large"></i>
+                Danh sách khuôn mặt
+            </h2>
+            
+            <div class="controls">
+                <div class="search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" placeholder="Tìm kiếm khuôn mặt..." id="searchInput" onkeyup="searchFaces()">
+                </div>
+                <button class="sync-btn" onclick="syncCache()">
+                    <i class="fas fa-sync-alt"></i>
+                    Đồng bộ cache
+                </button>
+            </div>
+        </div>
+        
+        <div class="faces-grid" id="facesContainer">
+            {% if faces %}
+                {% for face in faces %}
+                <div class="face-card" id="face-{{ face.id }}">
+                    <div class="face-image-container">
+                        <img src="/uploads/{{ face.image_path }}" 
+                             alt="{{ face.name }}" 
+                             class="face-image"
+                             onerror="this.onerror=null; this.src='/static/default_face.jpg';">
+                        
+                        <div class="face-overlay">
+                            <div style="font-size: 0.875rem;">ID: {{ face.id }}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="face-info">
+                        <div class="face-name">
+                            {{ face.name }}
+                            <span class="face-id">#{{ face.id }}</span>
+                        </div>
+                        
+                        <div class="face-details">
+                            {% if face.relationship %}
+                            <div class="detail-item">
+                                <div class="detail-icon">
+                                    <i class="fas fa-user-friends"></i>
+                                </div>
+                                <div class="detail-text">
+                                    <div class="detail-label">QUAN HỆ</div>
+                                    <div class="detail-value">{{ face.relationship }}</div>
+                                </div>
+                            </div>
+                            {% endif %}
+                            
+                            {% if face.email %}
+                            <div class="detail-item">
+                                <div class="detail-icon">
+                                    <i class="fas fa-envelope"></i>
+                                </div>
+                                <div class="detail-text">
+                                    <div class="detail-label">EMAIL</div>
+                                    <div class="detail-value">{{ face.email }}</div>
+                                </div>
+                            </div>
+                            {% endif %}
+                            
+                            <div class="detail-item">
+                                <div class="detail-icon">
+                                    <i class="fas fa-calendar"></i>
+                                </div>
+                                <div class="detail-text">
+                                    <div class="detail-label">THÊM LÚC</div>
+                                    <div class="detail-value">{{ face.created_at }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="face-actions">
+                        <button class="action-btn delete-btn" onclick="deleteFace({{ face.id }})">
+                            <i class="fas fa-trash-alt"></i>
+                            Xóa khuôn mặt
+                        </button>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">
+                    <div class="empty-icon">
+                        <i class="fas fa-user-slash"></i>
+                    </div>
+                    <h3>Chưa có khuôn mặt nào</h3>
+                    <p>Thêm khuôn mặt đầu tiên để bắt đầu hệ thống nhận diện của bạn</p>
+                    <button class="add-btn" onclick="showAddModal()" style="margin-top: 1rem;">
+                        <i class="fas fa-plus-circle"></i>
+                        Thêm khuôn mặt đầu tiên
+                    </button>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Add Face Modal -->
+<div id="addModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>
+                <i class="fas fa-user-plus"></i>
+                Thêm khuôn mặt mới
+            </h2>
+            <button class="close-modal" onclick="hideAddModal()">&times;</button>
+        </div>
+        
+        <div class="modal-body">
+            <div id="successMessage" class="success-message" style="display: none;"></div>
+            <div id="errorMessage" class="error-message" style="display: none;"></div>
+            
+            <form id="addFaceForm" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="faceName">
+                        <i class="fas fa-user"></i>
+                        Tên khuôn mặt
+                        <span class="required">*</span>
+                    </label>
+                    <input type="text" 
+                           id="faceName" 
+                           name="name" 
+                           class="form-control"
+                           required 
+                           placeholder="Nhập tên đầy đủ"
+                           maxlength="50">
+                </div>
+                
+                <div class="form-group">
+                    <label for="relationship">
+                        <i class="fas fa-users"></i>
+                        Quan hệ
+                    </label>
+                    <input type="text" 
+                           id="relationship" 
+                           name="relationship" 
+                           class="form-control"
+                           placeholder="VD: Bạn bè, Gia đình, Đồng nghiệp..."
+                           maxlength="30">
+                </div>
+                
+                <div class="form-group">
+                    <label for="email">
+                        <i class="fas fa-envelope"></i>
+                        Email liên hệ
+                    </label>
+                    <input type="email" 
+                           id="email" 
+                           name="email" 
+                           class="form-control"
+                           placeholder="email@example.com">
+                </div>
+                
+                <div class="form-group">
+                    <label>
+                        <i class="fas fa-image"></i>
+                        Ảnh khuôn mặt
+                        <span class="required">*</span>
+                    </label>
+                    <div class="file-upload" onclick="document.getElementById('faceImage').click()">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <div style="font-weight: 500; margin-bottom: 0.5rem;">Kéo thả hoặc click để chọn ảnh</div>
+                        <div style="font-size: 0.875rem; color: #64748b;">Định dạng: JPG, PNG, JPEG • Tối đa 4MB</div>
+                    </div>
+                    <input type="file" 
+                           id="faceImage" 
+                           name="face_image" 
+                           accept="image/*" 
+                           required
+                           style="display: none;"
+                           onchange="previewImage(this)">
+                    
+                    <div id="imagePreview" class="image-preview" style="display: none;">
+                        <img id="previewImage" src="" alt="Preview" class="preview-image">
+                    </div>
+                </div>
+                
+                <div id="faceCheckResult"></div>
+            </form>
+        </div>
+        
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="hideAddModal()">
+                <i class="fas fa-times"></i>
+                Hủy bỏ
+            </button>
+            <button type="button" class="btn btn-primary" id="checkFaceBtn" onclick="checkFace()">
+                <i class="fas fa-search"></i>
+                Kiểm tra khuôn mặt
+            </button>
+            <button type="submit" class="btn btn-primary" id="submitBtn" style="display: none;" onclick="submitFaceForm()">
+                <i class="fas fa-plus"></i>
+                Thêm khuôn mặt
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Modal functions
+    function showAddModal() {
+        document.getElementById('addModal').style.display = 'block';
+        document.body.style.overflow = 'hidden';
+    }
+    
+    function hideAddModal() {
+        document.getElementById('addModal').style.display = 'none';
+        document.body.style.overflow = 'auto';
+        resetForm();
+    }
+    
+    function resetForm() {
+        document.getElementById('addFaceForm').reset();
+        document.getElementById('imagePreview').style.display = 'none';
+        document.getElementById('faceCheckResult').innerHTML = '';
+        document.getElementById('checkFaceBtn').style.display = 'block';
+        document.getElementById('submitBtn').style.display = 'none';
+        document.getElementById('successMessage').style.display = 'none';
+        document.getElementById('errorMessage').style.display = 'none';
+    }
+    
+    // Image preview
+    function previewImage(input) {
+        const preview = document.getElementById('previewImage');
+        const previewContainer = document.getElementById('imagePreview');
+        
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                preview.src = e.target.result;
+                previewContainer.style.display = 'block';
+            }
+            
+            reader.readAsDataURL(input.files[0]);
+            document.getElementById('faceCheckResult').innerHTML = '';
+        }
+    }
+    
+    // Check face function
+    function checkFace() {
+        const fileInput = document.getElementById('faceImage');
+        const checkBtn = document.getElementById('checkFaceBtn');
+        const resultDiv = document.getElementById('faceCheckResult');
+        
+        if (!fileInput.files[0]) {
+            showNotification('Vui lòng chọn ảnh trước khi kiểm tra', 'warning');
+            return;
+        }
+        
+        const originalText = checkBtn.innerHTML;
+        checkBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang kiểm tra...';
+        checkBtn.disabled = true;
+        
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+        
+        fetch('/api/check_face', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.has_face) {
+                resultDiv.innerHTML = `
+                    <div style="background: #d1fae5; color: #065f46; padding: 1rem; border-radius: 10px; border-left: 4px solid #10b981;">
+                        <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem;">
+                            <i class="fas fa-check-circle" style="font-size: 1.25rem;"></i>
+                            <strong style="font-size: 1rem;">Kiểm tra thành công!</strong>
+                        </div>
+                        <div style="font-size: 0.875rem; color: #047857;">
+                            Đã tìm thấy ${data.count} khuôn mặt trong ảnh. Ảnh phù hợp để thêm vào hệ thống.
+                        </div>
+                    </div>
+                `;
+                document.getElementById('checkFaceBtn').style.display = 'none';
+                document.getElementById('submitBtn').style.display = 'block';
+            } else {
+                resultDiv.innerHTML = `
+                    <div style="background: #fee2e2; color: #7f1d1d; padding: 1rem; border-radius: 10px; border-left: 4px solid #ef4444;">
+                        <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem;">
+                            <i class="fas fa-exclamation-circle" style="font-size: 1.25rem;"></i>
+                            <strong style="font-size: 1rem;">❌ Không tìm thấy khuôn mặt</strong>
+                        </div>
+                        <div style="font-size: 0.875rem; color: #b91c1c;">
+                            ${data.error || 'Vui lòng chọn ảnh khác có khuôn mặt rõ ràng.'}
+                        </div>
+                    </div>
+                `;
+            }
+            
+            checkBtn.innerHTML = originalText;
+            checkBtn.disabled = false;
+        })
+        .catch(error => {
+            resultDiv.innerHTML = `
+                <div style="background: #fee2e2; color: #7f1d1d; padding: 1rem; border-radius: 10px; border-left: 4px solid #ef4444;">
+                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                        <i class="fas fa-exclamation-circle" style="font-size: 1.25rem;"></i>
+                        <strong style="font-size: 1rem;">❌ Lỗi kiểm tra</strong>
+                    </div>
+                </div>
+            `;
+            checkBtn.innerHTML = originalText;
+            checkBtn.disabled = false;
+        });
+    }
+    
+    // Submit face form
+    function submitFaceForm() {
+        const submitBtn = document.getElementById('submitBtn');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang thêm...';
+        submitBtn.disabled = true;
+        
+        const formData = new FormData(document.getElementById('addFaceForm'));
+        
+        fetch('/manage', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification(data.message + ' Cache đã được đồng bộ!', 'success');
+                setTimeout(() => {
+                    hideAddModal();
+                    window.location.reload();
+                }, 1500);
+            } else {
+                showNotification(data.error || 'Lỗi khi thêm khuôn mặt', 'error');
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+            }
+        })
+        .catch(error => {
+            showNotification('Lỗi kết nối: ' + error.message, 'error');
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+        });
+    }
+    
+    // Delete face function
+    function deleteFace(faceId) {
+        if (!confirm('Bạn có chắc muốn xóa khuôn mặt này?\nHành động này không thể hoàn tác.')) {
+            return;
+        }
+        
+        const deleteBtn = event.target.closest('button');
+        const originalText = deleteBtn.innerHTML;
+        const faceCard = document.getElementById(`face-${faceId}`);
+        
+        deleteBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang xóa...';
+        deleteBtn.disabled = true;
+        
+        if (faceCard) {
+            faceCard.style.opacity = '0.7';
+        }
+        
+        fetch(`/manage/delete/${faceId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                showNotification(data.message + ' Cache v' + data.cache_version, 'success');
+                
+                if (faceCard) {
+                    faceCard.style.transition = 'all 0.3s ease';
+                    faceCard.style.transform = 'scale(0.95)';
+                    faceCard.style.opacity = '0';
+                    
+                    setTimeout(() => {
+                        faceCard.remove();
+                        
+                        const container = document.getElementById('facesContainer');
+                        if (!container.children.length) {
+                            showEmptyState();
+                        }
+                    }, 300);
+                }
+            } else {
+                showNotification(data.error || 'Lỗi khi xóa khuôn mặt', 'error');
+                deleteBtn.innerHTML = originalText;
+                deleteBtn.disabled = false;
+                
+                if (faceCard) {
+                    faceCard.style.opacity = '1';
+                }
+            }
+        })
+        .catch(error => {
+            showNotification('Lỗi mạng: ' + error.message, 'error');
+            deleteBtn.innerHTML = originalText;
+            deleteBtn.disabled = false;
+            
+            if (faceCard) {
+                faceCard.style.opacity = '1';
+            }
+        });
+    }
+    
+    // Sync cache function
+    function syncCache() {
+        const syncBtn = document.querySelector('.sync-btn');
+        const originalText = syncBtn.innerHTML;
+        
+        syncBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang đồng bộ...';
+        syncBtn.disabled = true;
+        
+        fetch('/api/sync_faces_cache', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('✅ Đã đồng bộ cache thành công! (v' + data.cache_version + ')', 'success');
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            } else {
+                showNotification('❌ Lỗi đồng bộ: ' + data.error, 'error');
+            }
+            
+            syncBtn.innerHTML = originalText;
+            syncBtn.disabled = false;
+        })
+        .catch(error => {
+            showNotification('❌ Lỗi mạng: ' + error.message, 'error');
+            syncBtn.innerHTML = originalText;
+            syncBtn.disabled = false;
+        });
+    }
+    
+    // Search function
+    function searchFaces() {
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+        const faceCards = document.querySelectorAll('.face-card');
+        
+        faceCards.forEach(card => {
+            const name = card.querySelector('.face-name').textContent.toLowerCase();
+            const email = card.querySelector('.detail-value')?.textContent.toLowerCase() || '';
+            const relationship = card.querySelectorAll('.detail-value')[1]?.textContent.toLowerCase() || '';
+            
+            if (name.includes(searchTerm) || email.includes(searchTerm) || relationship.includes(searchTerm)) {
+                card.style.display = 'block';
+            } else {
+                card.style.display = 'none';
+            }
+        });
+    }
+    
+    // Show empty state
+    function showEmptyState() {
+        const container = document.getElementById('facesContainer');
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-icon">
+                    <i class="fas fa-user-slash"></i>
+                </div>
+                <h3>Không tìm thấy khuôn mặt</h3>
+                <p>Không có khuôn mặt nào phù hợp với tìm kiếm của bạn</p>
+                <button class="sync-btn" onclick="window.location.reload()" style="margin-top: 1rem;">
+                    <i class="fas fa-redo"></i>
+                    Xem tất cả
+                </button>
+            </div>
+        `;
+    }
+    
+    // Notification system
+    function showNotification(message, type = 'success') {
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        notification.innerHTML = `
+            <div class="notification-icon">
+                <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
+            </div>
+            <div class="notification-content">
+                <div class="notification-message">${message}</div>
+            </div>
+            <button class="notification-close" onclick="this.parentElement.remove()">
+                <i class="fas fa-times"></i>
+            </button>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            if (notification.parentElement) {
+                notification.remove();
+            }
+        }, 5000);
+    }
+    
+    // Close modal on outside click
+    window.onclick = function(event) {
+        const modal = document.getElementById('addModal');
+        if (event.target === modal) {
+            hideAddModal();
+        }
+    };
+    
+    // Close modal on ESC
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+            hideAddModal();
+        }
+    });
+</script>
+{% endblock %}

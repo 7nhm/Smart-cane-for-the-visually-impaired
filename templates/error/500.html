@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>500 - Lỗi máy chủ</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+        }
+        .error-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 3rem;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .error-code {
+            font-size: 8rem;
+            font-weight: bold;
+            color: #f5576c;
+            line-height: 1;
+            margin-bottom: 1rem;
+        }
+        .error-message {
+            font-size: 2rem;
+            color: #333;
+            margin-bottom: 2rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="error-container">
+                    <div class="error-code">500</div>
+                    <div class="error-message">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Lỗi máy chủ
+                    </div>
+                    <p class="text-muted mb-4">
+                        Đã xảy ra lỗi trong quá trình xử lý. Vui lòng thử lại sau hoặc liên hệ quản trị viên.
+                    </p>
+                    
+                    <div class="alert alert-warning mb-4">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Đội ngũ kỹ thuật đã được thông báo về lỗi này.
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-center">
+                        <a href="/dashboard" class="btn btn-primary btn-lg px-4 me-2">
+                            <i class="fas fa-home me-2"></i>Về trang chủ
+                        </a>
+                        <button onclick="location.reload()" class="btn btn-outline-primary btn-lg px-4 me-2">
+                            <i class="fas fa-redo me-2"></i>Tải lại trang
+                        </button>
+                        <a href="/signin" class="btn btn-outline-secondary btn-lg px-4">
+                            <i class="fas fa-sign-in-alt me-2"></i>Đăng nhập
+                        </a>
+                    </div>
+                    
+                    {% if error %}
+                    <div class="mt-4">
+                        <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#errorDetails">
+                            <i class="fas fa-bug me-1"></i>Chi tiết lỗi
+                        </button>
+                        <div class="collapse mt-2" id="errorDetails">
+                            <div class="card card-body text-start">
+                                <pre class="text-danger small mb-0">{{ error }}</pre>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

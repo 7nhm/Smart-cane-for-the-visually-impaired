@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %} Thiết bị {% endblock %}
+
+{% block content %}
+
+<style>
+    .device-form, .device-card {
+        border-radius: 20px;
+        padding: 25px;
+        background: white;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+    }
+
+    .device-card {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .device-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 28px rgba(0, 0, 0, 0.12);
+    }
+
+    .device-icon {
+        font-size: 35px;
+        margin-right: 12px;
+        color: #007aff; /* giống Apple HomeKit */
+    }
+
+    .delete-btn {
+        border-radius: 12px;
+        padding: 10px;
+        background: #ffe5e5;
+        border: none;
+        color: #ff3b30;
+        width: 100%;
+        transition: 0.2s ease;
+    }
+
+    .delete-btn:hover {
+        background: #ff3b30;
+        color: white;
+    }
+
+    .status-dot {
+        height: 12px;
+        width: 12px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 6px;
+    }
+    .online { background: #34c759; }
+    .offline { background: #ff3b30; }
+</style>
+
+
+<div class="container py-4">
+
+    <!-- TITLE -->
+    <h3 class="fw-bold mb-4"><i class="fa-solid fa-microchip text-primary"></i> Quản lý thiết bị</h3>
+
+    <div class="row g-4">
+
+        <!-- LEFT FORM -->
+        <div class="col-lg-4">
+            <div class="device-form">
+
+                <h5 class="fw-bold mb-3"><i class="fa-solid fa-plus text-primary"></i> Thêm thiết bị</h5>
+
+                <form method="POST" action="/device">
+                    <label class="form-label">Tên thiết bị</label>
+                    <input type="text" name="device_name" class="form-control mb-3" placeholder="Ex: Pi Camera" required>
+
+                    <label class="form-label">SIM number (optional)</label>
+                    <input type="text" name="sim_number" class="form-control mb-4" placeholder="Vinaphone, Viettel,...">
+
+                    <button class="btn btn-primary w-100 rounded-pill py-2 fw-bold">
+                        + Thêm thiết bị
+                    </button>
+                </form>
+
+            </div>
+        </div>
+
+        <!-- RIGHT DEVICE LIST -->
+        <div class="col-lg-8">
+            <h5 class="fw-bold mb-3">Danh sách thiết bị</h5>
+
+            {% if devices|length == 0 %}
+                <p class="text-muted">⚠️ Chưa có thiết bị nào được thêm.</p>
+
+            {% else %}
+                <div class="row g-3">
+                    {% for d in devices %}
+                        <div class="col-md-6 col-lg-4">
+                            <div class="device-card">
+                                <div class="d-flex align-items-center mb-2">
+                                    <i class="fa-solid fa-microchip device-icon"></i>
+                                    <h6 class="fw-bold m-0">{{ d.device_name }}</h6>
+                                </div>
+
+                                <p class="mb-1"><strong>SIM:</strong> {{ d.sim_number or "Không" }}</p>
+
+                                <p><strong>Trạng thái:</strong>
+                                    {% if d.status == "online" %}
+                                        <span class="status-dot online"></span> Online
+                                    {% else %}
+                                        <span class="status-dot offline"></span> Offline
+                                    {% endif %}
+                                </p>
+
+                                <form action="{{ url_for('delete_device', id=d.deviceID) }}" method="POST"
+                                      onsubmit="return confirm('Bạn có chắc muốn xoá thiết bị này không?')">
+                                    <button class="delete-btn">
+                                        <i class="fa-solid fa-trash"></i> Xóa thiết bị
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+
+    </div>
+</div>
+
+{% endblock %}

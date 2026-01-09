@@ -1,0 +1,1165 @@
+"""
+RTSP Stream System - Face Recognition + Obstacle Detection + Audio Announcement
+PRIORITY: Face recognition FIRST, then obstacle detection
+"""
+
+import cv2
+import threading
+import time
+import os
+import numpy as np
+import requests
+import json
+from datetime import datetime
+import sys
+import traceback
+import collections
+
+# Thêm đường dẫn để import face_model
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(current_dir)
+sys.path.append(project_root)
+
+print(f"Project root: {project_root}")
+
+# ================================================================
+# CONFIGURATION - ƯU TIÊN NHẬN DIỆN
+# ================================================================
+PI4_BASE_URL = "http://100.93.7.42:5001"
+PI4_API_TOKEN = "Bearer visionmate_pi_token"
+RTSP_URL = "rtsp://100.93.7.42:8554/usb"
+
+# Import Advanced Obstacle Detector
+try:
+    model_dir = os.path.join(project_root, "Model")
+    sys.path.insert(0, model_dir)
+    from advanced_obstacle_detector import advanced_detector
+    OBSTACLE_DETECTION_ENABLED = True
+    print("✅ Advanced Obstacle Detection enabled")
+except Exception as e:
+    OBSTACLE_DETECTION_ENABLED = False
+    print(f"⚠️ Obstacle detection disabled: {e}")
+    advanced_detector = None
+
+# ================================================================
+# BIẾN TOÀN CỤC
+# ================================================================
+latest_frame = None
+latest_frame_lock = threading.Lock()
+stream_active = True
+frame_ready = threading.Event()
+camera_connected = False
+
+# Biến theo dõi
+current_people = {}
+obstacle_detections = []
+face_boxes = []  # Lưu box khuôn mặt
+obstacle_boxes = []  # Lưu box vật cản
+last_face_result = ("UNKNOWN", 0.0, None)
+last_face_detection_time = 0
+last_obstacle_detection_time = 0
+
+# Cooldown phát âm thanh
+UNKNOWN_COOLDOWN = 8        # Tăng lên 8 giây
+KNOWN_COOLDOWN = 5          # Tăng lên 5 giây
+OBSTACLE_COOLDOWN = 12      # Tăng lên 12 giây
+announce_history = {"unknown": 0, "known": {}, "obstacle": 0}
+
+# ================================================================
+# CONFIGURATION - ƯU TIÊN NHẬN DIỆN KHUÔN MẶT
+# ================================================================
+# Cấu hình nhận diện khuôn mặt - TĂNG ĐỘ CHÍNH XÁC
+FACE_CONFIDENCE_THRESHOLD = 0.65      # TĂNG ngưỡng lên 65%
+MIN_FACE_WIDTH = 80                   # TĂNG kích thước tối thiểu
+MIN_FACE_HEIGHT = 80
+FACE_AREA_MIN = 4000                  # TĂNG diện tích tối thiểu
+MAX_FACES = 1                         # Chỉ tập trung 1 khuôn mặt chính
+FACE_STABILITY_THRESHOLD = 3          # Cần 3 frame ổn định để đảm bảo
+FACE_MOVEMENT_THRESHOLD = 30          # Giảm ngưỡng di chuyển
+
+# Cấu hình vật cản - GIẢM ĐỘ NHẠY
+OBSTACLE_DISTANCE_THRESHOLD = 1.0     # GIẢM xuống 1m (chỉ cảnh báo khi RẤT gần)
+MIN_OBSTACLE_AREA = 2500              # TĂNG diện tích tối thiểu vật cản
+MAX_OBSTACLE_AREA = 15000             # Điều chỉnh phù hợp
+OBSTACLE_PROCESS_INTERVAL = 2.0       # GIẢM tần suất xử lý vật cản
+
+# Biến kiểm soát ưu tiên
+face_processing_active = True          # Luôn ưu tiên nhận diện mặt
+obstacle_processing_active = False     # Chỉ bật khi không có mặt
+last_face_detected_time = 0            # Thời gian phát hiện mặt cuối
+FACE_PRIORITY_TIMEOUT = 3.0            # Sau 3s không có mặt thì xử lý vật cản
+
+# Filter tracking
+face_stability_counter = 0
+face_history = collections.deque(maxlen=5)
+last_stable_face = None
+
+# ================================================================
+# IMPROVED FACE DETECTOR - CHÍNH XÁC HƠN
+# ================================================================
+class ImprovedFaceDetector:
+    def __init__(self):
+        self.face_cascade = None
+        self.load_cascade()
+        
+    def load_cascade(self):
+        """Tải cascade classifier chính xác hơn"""
+        try:
+            # Sử dụng cascade tốt hơn
+            cascade_path = cv2.data.haarcascades + 'haarcascade_frontalface_alt2.xml'
+            self.face_cascade = cv2.CascadeClassifier(cascade_path)
+            
+            if self.face_cascade.empty():
+                cascade_path = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
+                self.face_cascade = cv2.CascadeClassifier(cascade_path)
+            
+            if not self.face_cascade.empty():
+                print("✅ Improved Face cascade loaded")
+            else:
+                self.face_cascade = None
+                print("❌ Cannot load any face cascade")
+        except Exception as e:
+            self.face_cascade = None
+            print(f"❌ Cascade load error: {e}")
+    
+    def enhance_image(self, frame):
+        """Cải thiện chất lượng ảnh trước khi nhận diện"""
+        if frame is None:
+            return None
+            
+        try:
+            # Tăng contrast với CLAHE
+            lab = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
+            l, a, b = cv2.split(lab)
+            clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+            cl = clahe.apply(l)
+            limg = cv2.merge((cl, a, b))
+            enhanced = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
+            
+            # Giảm noise nhẹ
+            enhanced = cv2.fastNlMeansDenoisingColored(enhanced, None, 5, 5, 7, 15)
+            
+            return enhanced
+        except:
+            return frame
+    
+    def detect_faces_accurate(self, frame):
+        """
+        Phát hiện khuôn mặt CHÍNH XÁC với pre-processing
+        Trả về list boxes [(x, y, w, h), ...]
+        """
+        global face_stability_counter, last_stable_face, face_history
+        
+        if self.face_cascade is None or frame is None:
+            return []
+        
+        try:
+            # Cải thiện chất lượng ảnh
+            enhanced_frame = self.enhance_image(frame)
+            if enhanced_frame is None:
+                enhanced_frame = frame
+            
+            # Resize để tăng tốc nhưng vẫn giữ chất lượng
+            height, width = frame.shape[:2]
+            
+            if width > 480:
+                scale = 480 / width
+                small_w = 480
+                small_h = int(height * scale)
+                small_frame = cv2.resize(enhanced_frame, (small_w, small_h))
+            else:
+                small_frame = enhanced_frame
+                scale = 1.0
+            
+            # Chuyển sang grayscale với gamma correction
+            gray = cv2.cvtColor(small_frame, cv2.COLOR_BGR2GRAY)
+            
+            # Gamma correction cho ánh sáng yếu
+            gray = np.array(255 * (gray / 255) ** 1.2, dtype=np.uint8)
+            
+            # Làm mờ vừa phải
+            gray = cv2.GaussianBlur(gray, (5, 5), 1.5)
+            
+            # Phát hiện khuôn mặt với tham số CHÍNH XÁC
+            faces = self.face_cascade.detectMultiScale(
+                gray,
+                scaleFactor=1.05,       # Giảm để tăng độ chính xác
+                minNeighbors=6,         # TĂNG để giảm false positive
+                minSize=(70, 70),       # TĂNG kích thước tối thiểu
+                maxSize=(300, 300),     # TĂNG kích thước tối đa
+                flags=cv2.CASCADE_SCALE_IMAGE
+            )
+            
+            if len(faces) == 0:
+                # Không có khuôn mặt, giảm stability
+                face_stability_counter = max(0, face_stability_counter - 2)
+                return []
+            
+            # Lọc khuôn mặt kỹ càng hơn
+            valid_faces = []
+            for (x, y, w, h) in faces:
+                # Scale lại tọa độ
+                if scale != 1.0:
+                    x, y, w, h = int(x/scale), int(y/scale), int(w/scale), int(h/scale)
+                
+                # Kiểm tra kích thước cơ bản
+                if w < MIN_FACE_WIDTH or h < MIN_FACE_HEIGHT:
+                    continue
+                
+                # Kiểm tra diện tích
+                face_area = w * h
+                if face_area < FACE_AREA_MIN:
+                    continue
+                
+                # Kiểm tra aspect ratio (tỷ lệ khung hình khuôn mặt)
+                aspect_ratio = w / h
+                if aspect_ratio < 0.7 or aspect_ratio > 1.3:  # Thu hẹp ngưỡng
+                    continue
+                
+                # Kiểm tra vị trí (ưu tiên khuôn mặt ở giữa ảnh)
+                center_x = x + w/2
+                center_y = y + h/2
+                img_center_x = width / 2
+                img_center_y = height / 2
+                
+                # Tính khoảng cách đến trung tâm
+                distance_to_center = np.sqrt((center_x - img_center_x)**2 + (center_y - img_center_y)**2)
+                
+                # Ưu tiên khuôn mặt gần trung tâm
+                if distance_to_center > width * 0.4:  # Quá xa trung tâm
+                    continue
+                
+                valid_faces.append((x, y, w, h, face_area, distance_to_center))
+            
+            if len(valid_faces) == 0:
+                face_stability_counter = max(0, face_stability_counter - 1)
+                return []
+            
+            # Sắp xếp theo: 1) Gần trung tâm, 2) Diện tích lớn
+            valid_faces.sort(key=lambda f: (f[5], -f[4]))  # distance (tăng), area (giảm)
+            
+            if len(valid_faces) > MAX_FACES:
+                valid_faces = valid_faces[:MAX_FACES]
+            
+            # Chỉ lấy tọa độ
+            final_faces = [(x, y, w, h) for (x, y, w, h, _, _) in valid_faces]
+            
+            # Kiểm tra tính ổn định
+            current_face = final_faces[0] if final_faces else None
+            
+            if current_face:
+                face_history.append(current_face)
+                
+                if len(face_history) >= 2:
+                    # Kiểm tra độ ổn định qua các frame
+                    last_face = face_history[-2] if len(face_history) >= 2 else None
+                    
+                    if last_face:
+                        # Tính sự thay đổi vị trí
+                        x1, y1, w1, h1 = current_face
+                        x2, y2, w2, h2 = last_face
+                        
+                        center_change = np.sqrt((x1 + w1/2 - x2 - w2/2)**2 + 
+                                               (y1 + h1/2 - y2 - h2/2)**2)
+                        size_change = abs(w1 - w2) + abs(h1 - h2)
+                        
+                        # Nếu ổn định (ít thay đổi)
+                        if center_change < FACE_MOVEMENT_THRESHOLD and size_change < 20:
+                            face_stability_counter += 1
+                        else:
+                            face_stability_counter = max(0, face_stability_counter - 1)
+                    
+                    # Giới hạn stability counter
+                    if face_stability_counter > FACE_STABILITY_THRESHOLD * 3:
+                        face_stability_counter = FACE_STABILITY_THRESHOLD * 3
+                    
+                    if face_stability_counter >= FACE_STABILITY_THRESHOLD:
+                        last_stable_face = current_face
+                        if face_stability_counter == FACE_STABILITY_THRESHOLD:
+                            print(f"✅ [FACE] Face detected and STABLE: {current_face[2]}x{current_face[3]}")
+            
+            return final_faces if face_stability_counter >= FACE_STABILITY_THRESHOLD else []
+            
+        except Exception as e:
+            print(f"⚠️ Face detection error: {e}")
+            return []
+
+# Khởi tạo face detector
+face_detector = ImprovedFaceDetector()
+
+# ================================================================
+# IMPORT FACE_MODEL AN TOÀN
+# ================================================================
+def import_face_model():
+    """Import face_model một cách an toàn"""
+    try:
+        model_dir = os.path.join(project_root, "Model")
+        if model_dir not in sys.path:
+            sys.path.insert(0, model_dir)
+        
+        from face_model import recognize_face_simple
+        print("✅ Import face_model successful!")
+        return recognize_face_simple
+    except ImportError as e:
+        print(f"Import error: {e}")
+        return None
+    except Exception as e:
+        print(f"Other error: {e}")
+        return None
+
+# Import face_model function
+recognize_face_func = import_face_model()
+
+if recognize_face_func is None:
+    print("⚠️ Cannot import face_model, creating fallback function")
+    def recognize_face_simple_fallback(frame_path):
+        return ("UNKNOWN", 0.0, "Unknown", None)
+    recognize_face_func = recognize_face_simple_fallback
+
+# ================================================================
+# HÀM KIỂM SOÁT ƯU TIÊN
+# ================================================================
+def update_priority_status():
+    """Cập nhật trạng thái ưu tiên dựa trên phát hiện khuôn mặt"""
+    global face_processing_active, obstacle_processing_active, last_face_detected_time
+    
+    current_time = time.time()
+    
+    # Nếu vừa phát hiện khuôn mặt
+    if current_time - last_face_detected_time < FACE_PRIORITY_TIMEOUT:
+        face_processing_active = True
+        obstacle_processing_active = False
+        return "FACE_PRIORITY"
+    else:
+        # Sau 3 giây không có mặt, bật phát hiện vật cản
+        face_processing_active = True  # Vẫn bật nhận diện mặt
+        obstacle_processing_active = True  # Bật thêm phát hiện vật cản
+        return "OBSTACLE_ALLOWED"
+
+# ================================================================
+# HÀM VẼ BOXES
+# ================================================================
+def draw_face_boxes(frame, boxes):
+    """Vẽ box khuôn mặt lên frame"""
+    if len(boxes) == 0:
+        return frame
+    
+    for i, (x, y, w, h) in enumerate(boxes):
+        # Màu xanh lá cho khuôn mặt
+        color = (0, 255, 0) if i == 0 else (0, 200, 0)  # Khuôn mặt chính sáng hơn
+        thickness = 2
+        
+        # Vẽ bounding box
+        cv2.rectangle(frame, (x, y), (x + w, y + h), color, thickness)
+        
+        # Vẽ label với priority indicator
+        label = f"FACE{' *' if i == 0 else ''}"
+        (label_w, label_h), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
+        
+        # Background cho text
+        cv2.rectangle(frame, 
+                     (x, y - label_h - 5), 
+                     (x + label_w, y), 
+                     color, -1)
+        
+        # Text
+        cv2.putText(frame, label, 
+                   (x, y - 5), 
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.5, 
+                   (0, 0, 0), 1)
+        
+        # Vẽ trung tâm khuôn mặt
+        center_x = x + w//2
+        center_y = y + h//2
+        cv2.circle(frame, (center_x, center_y), 3, (255, 0, 0), -1)
+    
+    return frame
+
+def draw_obstacle_boxes(frame, obstacles):
+    """Vẽ box vật cản lên frame (chỉ vật cản trong 1m)"""
+    if len(obstacles) == 0:
+        return frame
+    
+    for obstacle in obstacles:
+        try:
+            if 'bbox' not in obstacle:
+                continue
+                
+            x, y, w, h = obstacle['bbox']
+            confidence = obstacle.get('confidence', 0.5)
+            distance = obstacle.get('estimated_distance', 999)
+            
+            # CHỈ VẼ vật cản trong 1m
+            if distance > OBSTACLE_DISTANCE_THRESHOLD:
+                continue
+            
+            # Chọn màu dựa trên khoảng cách
+            if distance < 0.5:
+                color = (0, 0, 255)      # Đỏ - rất gần (<0.5m)
+                thickness = 3
+                label = "DANGER"
+            elif distance < 0.8:
+                color = (0, 140, 255)    # Cam - gần (0.5-0.8m)
+                thickness = 2
+                label = "WARNING"
+            else:
+                color = (0, 255, 255)    # Vàng - trong 1m (0.8-1m)
+                thickness = 1
+                label = "CAUTION"
+            
+            # Vẽ bounding box với độ trong suốt
+            overlay = frame.copy()
+            cv2.rectangle(overlay, (x, y), (x + w, y + h), color, thickness)
+            alpha = 0.3
+            frame = cv2.addWeighted(overlay, alpha, frame, 1 - alpha, 0)
+            
+            # Vẽ solid box nhỏ hơn bên trong
+            inner_x = x + thickness
+            inner_y = y + thickness
+            inner_w = w - 2*thickness
+            inner_h = h - 2*thickness
+            cv2.rectangle(frame, (inner_x, inner_y), (inner_x + inner_w, inner_y + inner_h), color, -1)
+            
+            # Vẽ label với khoảng cách
+            label_text = f"{label}: {distance:.1f}m"
+            (label_w, label_h), _ = cv2.getTextSize(label_text, cv2.FONT_HERSHEY_SIMPLEX, 0.4, 1)
+            
+            # Vẽ background cho text
+            cv2.rectangle(frame, 
+                        (x, y - label_h - 2), 
+                        (x + label_w, y), 
+                        color, -1)
+            
+            # Vẽ text
+            cv2.putText(frame, label_text, 
+                       (x, y - 2), 
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.4, 
+                       (255, 255, 255), 1)
+                              
+        except Exception as e:
+            continue
+    
+    return frame
+
+def draw_overlay_info(frame):
+    """Vẽ overlay thông tin lên frame"""
+    height, width = frame.shape[:2]
+    
+    # Vẽ status bar trên cùng
+    status_color = (0, 255, 0) if camera_connected else (0, 0, 255)
+    status_text = "LIVE" if camera_connected else "OFFLINE"
+    
+    # Status bar background
+    cv2.rectangle(frame, (0, 0), (width, 35), (0, 0, 0, 180), -1)
+    
+    # Status text
+    cv2.putText(frame, f"● {status_text}", 
+                (10, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.7, status_color, 2)
+    
+    # Vẽ thông tin counters
+    face_count = len(face_boxes)
+    obstacle_count = len([o for o in obstacle_boxes if o.get('estimated_distance', 999) <= OBSTACLE_DISTANCE_THRESHOLD])
+    
+    # Face counter
+    face_text = f"Faces: {face_count}"
+    cv2.putText(frame, face_text, 
+                (width - 100, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (100, 255, 100), 1)
+    
+    # Obstacle counter (chỉ trong 1m)
+    if OBSTACLE_DETECTION_ENABLED:
+        obs_color = (100, 100, 255) if obstacle_count > 0 else (200, 200, 200)
+        obs_text = f"Obstacles (<1m): {obstacle_count}"
+        cv2.putText(frame, obs_text, 
+                    (width - 130, 45), cv2.FONT_HERSHEY_SIMPLEX, 0.5, obs_color, 1)
+    
+    # Vẽ thời gian
+    time_text = datetime.now().strftime("%H:%M:%S")
+    cv2.putText(frame, time_text, 
+                (width - 100, height - 10), 
+                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+    
+    # Vẽ stability info
+    if face_stability_counter > 0:
+        stability_text = f"Face Stable: {face_stability_counter}/{FACE_STABILITY_THRESHOLD}"
+        stability_color = (0, 255, 0) if face_stability_counter >= FACE_STABILITY_THRESHOLD else (0, 255, 255)
+        cv2.putText(frame, stability_text, 
+                    (10, height - 50), 
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.4, stability_color, 1)
+    
+    # Vẽ priority status
+    priority_status = update_priority_status()
+    priority_color = (0, 255, 0) if priority_status == "FACE_PRIORITY" else (255, 255, 0)
+    priority_text = f"Priority: {priority_status}"
+    cv2.putText(frame, priority_text, 
+                (10, height - 30), 
+                cv2.FONT_HERSHEY_SIMPLEX, 0.4, priority_color, 1)
+    
+    # Vẽ mode info
+    mode_text = "FACE PRIORITY MODE"
+    cv2.putText(frame, mode_text, 
+                (10, height - 10), 
+                cv2.FONT_HERSHEY_SIMPLEX, 0.4, (100, 255, 100), 1)
+    
+    # Vẽ last recognition result
+    if last_face_result[0] != "UNKNOWN" and time.time() - last_face_detection_time < 5:
+        name, conf, _ = last_face_result
+        result_text = f"Last: {name} ({conf:.1%})"
+        cv2.putText(frame, result_text, 
+                    (width - 150, height - 30), 
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 0), 1)
+    
+    return frame
+
+# ================================================================
+# HÀM GỬI KẾT QUẢ VỀ PI
+# ================================================================
+def send_to_pi_async(name, confidence, is_obstacle=False, danger_level=0, obstacle_count=0):
+    global announce_history, last_face_detected_time
+    
+    current_time = time.time()
+    name_str = str(name)
+    
+    # Convert numpy float to Python float
+    if hasattr(confidence, 'item'):
+        confidence = float(confidence.item())
+    else:
+        confidence = float(confidence)
+    
+    # CẬP NHẬT thời gian phát hiện mặt (cho ưu tiên)
+    if not is_obstacle:
+        last_face_detected_time = current_time
+    
+    # KIỂM TRA COOLDOWN
+    if is_obstacle:
+        if current_time - announce_history["obstacle"] < OBSTACLE_COOLDOWN:
+            return False
+        
+        # CHỈ gửi nếu có vật cản trong 1m VÀ không có mặt ưu tiên
+        if obstacle_count == 0:
+            return False
+        
+        # Kiểm tra ưu tiên: nếu vừa có mặt thì không cảnh báo vật cản
+        if current_time - last_face_detected_time < FACE_PRIORITY_TIMEOUT:
+            print(f"[PRIORITY] Suppressing obstacle alert - face has priority")
+            return False
+        
+        message = "Cảnh báo! Có vật cản gần!"
+        status = "obstacle"
+        announce_history["obstacle"] = current_time
+        
+        print(f"[PI] 🔊 OBSTACLE ALERT: {message} (distance < 1m)")
+        
+    else:
+        # Face recognition
+        if name_str == "UNKNOWN":
+            if current_time - announce_history["unknown"] < UNKNOWN_COOLDOWN:
+                return False
+            
+            # BỘ LỌC CHẶT: Kiểm tra confidence và stability
+            if confidence < FACE_CONFIDENCE_THRESHOLD:
+                print(f"[FILTER] Unknown face REJECTED: confidence {confidence:.1%} < {FACE_CONFIDENCE_THRESHOLD:.0%}")
+                return False
+            
+            if face_stability_counter < FACE_STABILITY_THRESHOLD:
+                print(f"[FILTER] Unknown face REJECTED: stability {face_stability_counter} < {FACE_STABILITY_THRESHOLD}")
+                return False
+                
+            message = "Có người lạ"
+            status = "unknown"
+            announce_history["unknown"] = current_time
+            print(f"[PI] 🔊 UNKNOWN: {message} (conf: {confidence:.1%}, stable: {face_stability_counter})")
+            
+        else:
+            # Check cooldown for known person
+            if name_str in announce_history["known"]:
+                last_announced = announce_history["known"][name_str]
+                if current_time - last_announced < KNOWN_COOLDOWN:
+                    return False
+            
+            # BỘ LỌC cho known faces
+            if confidence < 0.70:  # TĂNG ngưỡng cho known faces
+                print(f"[FILTER] Known face REJECTED: confidence {confidence:.1%} < 70%")
+                return False
+            
+            # Kiểm tra stability
+            if face_stability_counter < FACE_STABILITY_THRESHOLD:
+                print(f"[FILTER] Known face REJECTED: not stable enough")
+                return False
+            
+            message = f"Xin chào {name_str}"
+            status = "known"
+            announce_history["known"][name_str] = current_time
+            print(f"[PI] 🔊 KNOWN: {name_str} (conf: {confidence:.1%}, stable: {face_stability_counter})")
+    
+    # Gửi request đến Pi
+    def send_request():
+        payload = {
+            "status": status,
+            "name": name_str,
+            "confidence": confidence,
+            "message": message,
+            "is_obstacle": is_obstacle,
+            "danger_level": int(danger_level),
+            "timestamp": datetime.now().isoformat(),
+            "priority": "FACE" if not is_obstacle else "OBSTACLE"
+        }
+        
+        headers = {
+            "Authorization": PI4_API_TOKEN,
+            "Content-Type": "application/json"
+        }
+        
+        try:
+            response = requests.post(
+                f"{PI4_BASE_URL}/api/receive_recognition",
+                json=payload,
+                headers=headers,
+                timeout=2.0
+            )
+            
+            if response.status_code == 200:
+                print(f"[PI] ✅ Audio sent: {message}")
+                
+        except Exception as e:
+            print(f"[PI] Send error: {e}")
+    
+    thread = threading.Thread(target=send_request, daemon=True)
+    thread.start()
+    
+    return True
+
+# ================================================================
+# THREAD CAMERA
+# ================================================================
+def camera_thread():
+    """Thread camera ổn định"""
+    global latest_frame, camera_connected
+    
+    print("📡 [CAM] Camera thread started")
+    
+    cap = None
+    
+    while stream_active:
+        try:
+            if cap is None or not cap.isOpened():
+                print(f"📡 Connecting to RTSP...")
+                
+                cap = cv2.VideoCapture(RTSP_URL)
+                
+                if cap.isOpened():
+                    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+                    cap.set(cv2.CAP_PROP_FPS, 20)  # Giảm FPS để ổn định
+                    
+                    print("✅ Camera connected")
+                    camera_connected = True
+                else:
+                    camera_connected = False
+                    time.sleep(2)
+                    continue
+            
+            # Read frame
+            ret, frame = cap.read()
+            
+            if not ret or frame is None:
+                camera_connected = False
+                cap.release()
+                cap = None
+                time.sleep(1)
+                continue
+            
+            # Resize để giảm tải
+            if frame.shape[1] > 640:
+                height, width = frame.shape[:2]
+                new_width = 640
+                new_height = int(height * (new_width / width))
+                frame = cv2.resize(frame, (new_width, new_height))
+            
+            # Update frame
+            with latest_frame_lock:
+                latest_frame = frame
+            
+            frame_ready.set()
+            camera_connected = True
+            
+            time.sleep(1/20)  # 20 FPS
+            
+        except Exception as e:
+            camera_connected = False
+            if cap:
+                cap.release()
+                cap = None
+            time.sleep(1)
+    
+    if cap:
+        cap.release()
+    print("🛑 [CAM] Camera thread stopped")
+
+# ================================================================
+# THREAD RECOGNITION - ƯU TIÊN CAO
+# ================================================================
+def recognition_thread():
+    """Thread nhận diện khuôn mặt - ƯU TIÊN CAO"""
+    global last_face_result, last_face_detection_time, current_people, face_boxes, last_face_detected_time
+    
+    print("🧠 [FACE] HIGH PRIORITY Face recognition thread started")
+    
+    temp_dir = "uploads/rtsp_faces"
+    os.makedirs(temp_dir, exist_ok=True)
+    
+    last_process_time = 0
+    process_interval = 1.0  # Tăng tốc độ xử lý mặt
+    
+    while stream_active:
+        try:
+            current_time = time.time()
+            
+            # LUÔN xử lý mặt (ưu tiên cao)
+            if current_time - last_process_time < process_interval:
+                time.sleep(0.2)  # Giảm sleep
+                continue
+            
+            if not camera_connected:
+                time.sleep(1)
+                continue
+            
+            with latest_frame_lock:
+                if latest_frame is None:
+                    continue
+                frame = latest_frame.copy()
+            
+            # Phát hiện khuôn mặt
+            boxes = face_detector.detect_faces_accurate(frame)
+            
+            # Cập nhật face_boxes cho display
+            face_boxes = boxes
+            
+            if len(boxes) == 0:
+                # Giảm stability khi không có khuôn mặt
+                global face_stability_counter
+                face_stability_counter = max(0, face_stability_counter - 1)
+                last_process_time = current_time
+                continue
+            
+            # Cập nhật thời gian phát hiện mặt
+            last_face_detected_time = current_time
+            
+            # Lấy khuôn mặt chính (đầu tiên)
+            x, y, w, h = boxes[0]
+            
+            # Kiểm tra nếu khuôn mặt đủ ổn định
+            if face_stability_counter < FACE_STABILITY_THRESHOLD:
+                print(f"[FACE] Face detected but not stable yet: {face_stability_counter}/{FACE_STABILITY_THRESHOLD}")
+                last_process_time = current_time
+                continue
+            
+            print(f"✅ [FACE] Processing STABLE face: {w}x{h} (stable: {face_stability_counter})")
+            
+            # Crop face với margin vừa phải
+            margin = 15
+            x1 = max(0, x - margin)
+            y1 = max(0, y - margin)
+            x2 = min(frame.shape[1], x + w + margin)
+            y2 = min(frame.shape[0], y + h + margin)
+            
+            face_crop = frame[y1:y2, x1:x2]
+            
+            if face_crop.size == 0 or face_crop.shape[0] < 70 or face_crop.shape[1] < 70:
+                continue
+            
+            # Save face
+            timestamp = int(time.time() * 1000)
+            face_path = os.path.join(temp_dir, f"face_{timestamp}.jpg")
+            
+            try:
+                # Thêm pre-processing cho ảnh crop
+                enhanced_crop = face_detector.enhance_image(face_crop)
+                if enhanced_crop is not None:
+                    face_crop = enhanced_crop
+                
+                cv2.imwrite(face_path, face_crop, [cv2.IMWRITE_JPEG_QUALITY, 90])
+                
+                if not os.path.exists(face_path):
+                    continue
+                
+                # Recognize face
+                result = recognize_face_func(face_path)
+                
+                recognized_name = "UNKNOWN"
+                confidence = 0.0
+                
+                if result and isinstance(result, (list, tuple)) and len(result) >= 2:
+                    name, conf = result[0], result[1]
+                    
+                    if not name or name in ["None", "NO_FACE", "NO_EMBEDDING", "", "unknown"]:
+                        recognized_name = "UNKNOWN"
+                    else:
+                        recognized_name = str(name).strip()
+                    
+                    try:
+                        confidence = float(conf) if conf else 0.0
+                    except:
+                        confidence = 0.0
+                    
+                    # Gửi kết quả ngay nếu đạt ngưỡng
+                    should_send = False
+                    
+                    if recognized_name == "UNKNOWN":
+                        if confidence >= FACE_CONFIDENCE_THRESHOLD:
+                            should_send = True
+                            print(f"[RESULT] UNKNOWN (conf: {confidence:.1%}) - SENDING")
+                        else:
+                            print(f"[RESULT] UNKNOWN (conf: {confidence:.1%}) - BELOW THRESHOLD")
+                    else:
+                        if confidence >= 0.70:  # TĂNG ngưỡng cho known
+                            should_send = True
+                            print(f"[RESULT] {recognized_name} (conf: {confidence:.1%}) - SENDING")
+                        else:
+                            print(f"[RESULT] {recognized_name} (conf: {confidence:.1%}) - BELOW THRESHOLD")
+                    
+                    if should_send:
+                        # Send result
+                        send_to_pi_async(recognized_name, confidence, is_obstacle=False)
+                        
+                        # Update tracking
+                        if recognized_name != "UNKNOWN":
+                            current_people[recognized_name] = current_time
+                        
+                        last_face_result = (recognized_name, confidence, face_crop)
+                        last_face_detection_time = current_time
+                
+                last_process_time = current_time
+                
+            except Exception as e:
+                print(f"[FACE] Error: {e}")
+                traceback.print_exc()
+            finally:
+                # Cleanup
+                if os.path.exists(face_path):
+                    try:
+                        os.remove(face_path)
+                    except:
+                        pass
+            
+            # Cleanup old people
+            if current_time % 20 < 0.1:
+                cleanup_old_people(60)  # Tăng thời gian tracking
+            
+        except Exception as e:
+            print(f"[FACE] Thread error: {e}")
+            time.sleep(1)
+    
+    print("[FACE] Recognition thread stopped")
+
+# ================================================================
+# THREAD OBSTACLE DETECTION - ƯU TIÊN THẤP
+# ================================================================
+def obstacle_detection_thread():
+    """Thread phát hiện vật cản - ƯU TIÊN THẤP"""
+    global obstacle_detections, obstacle_boxes, last_obstacle_detection_time, last_face_detected_time
+    
+    print("🛑 [OBSTACLE] LOW PRIORITY Obstacle detection thread started")
+    
+    last_process_time = 0
+    process_interval = OBSTACLE_PROCESS_INTERVAL  # GIẢM tần suất
+    
+    while stream_active:
+        try:
+            current_time = time.time()
+            
+            # KIỂM TRA ƯU TIÊN: nếu vừa có mặt thì đợi
+            if current_time - last_face_detected_time < FACE_PRIORITY_TIMEOUT:
+                # Đang trong thời gian ưu tiên mặt, giảm tần suất xử lý vật cản
+                time.sleep(1.0)
+                continue
+            
+            if current_time - last_process_time < process_interval:
+                time.sleep(0.5)
+                continue
+            
+            if not camera_connected:
+                time.sleep(1)
+                continue
+            
+            with latest_frame_lock:
+                if latest_frame is None:
+                    continue
+                frame = latest_frame.copy()
+            
+            if not OBSTACLE_DETECTION_ENABLED or advanced_detector is None:
+                time.sleep(2)
+                continue
+            
+            # Detect obstacles
+            has_obstacle, obstacles, confidence, danger_level = advanced_detector.detect_obstacles(frame)
+            
+            # Convert confidence
+            if hasattr(confidence, 'item'):
+                confidence = float(confidence.item())
+            else:
+                confidence = float(confidence)
+            
+            # LỌC CHỈ VẬT CẢN TRONG 1M
+            filtered_obstacles = []
+            close_obstacles_count = 0
+            
+            if has_obstacle:
+                for obstacle in obstacles:
+                    # Tính ước lượng khoảng cách dựa trên kích thước
+                    if 'bbox' in obstacle:
+                        x, y, w, h = obstacle['bbox']
+                        area = w * h
+                        
+                        # Ước lượng khoảng cách dựa trên diện tích - CÔNG THỨC MỚI CHÍNH XÁC
+                        if area > 0:
+                            # Công thức mới: distance = k / sqrt(area)
+                            # Giả sử: area = 1000px² -> distance ≈ 1.5m
+                            # area = 4000px² -> distance ≈ 0.75m
+                            estimated_distance = max(0.3, 50.0 / (area ** 0.5))
+                            
+                            # Giới hạn khoảng cách tối đa
+                            estimated_distance = min(estimated_distance, 5.0)
+                            
+                            obstacle['estimated_distance'] = estimated_distance
+                            
+                            # CHỈ thêm vào nếu trong 1m
+                            if estimated_distance <= OBSTACLE_DISTANCE_THRESHOLD:
+                                filtered_obstacles.append(obstacle)
+                                
+                                # Đếm vật cản rất gần (dưới 0.8m)
+                                if estimated_distance < 0.8:
+                                    close_obstacles_count += 1
+            
+            # Update results
+            obstacle_detections = filtered_obstacles
+            obstacle_boxes = filtered_obstacles.copy()
+            
+            if len(filtered_obstacles) > 0:
+                print(f"🛑 [OBSTACLE] Found {len(filtered_obstacles)} obstacles within 1m")
+                print(f"    Very close obstacles (<0.8m): {close_obstacles_count}")
+                
+                # Gửi audio alert nếu có vật cản trong 1m VÀ không có mặt ưu tiên
+                if close_obstacles_count > 0:
+                    # Kiểm tra ưu tiên mặt
+                    if current_time - last_face_detected_time >= FACE_PRIORITY_TIMEOUT:
+                        # Tính danger level
+                        new_danger_level = min(3, close_obstacles_count)
+                        
+                        send_to_pi_async(
+                            "OBSTACLE", 
+                            confidence, 
+                            is_obstacle=True, 
+                            danger_level=new_danger_level,
+                            obstacle_count=close_obstacles_count
+                        )
+                    else:
+                        print(f"[PRIORITY] Suppressing obstacle alert - face has priority")
+            
+            last_obstacle_detection_time = current_time
+            last_process_time = current_time
+            
+        except Exception as e:
+            print(f"❌ [OBSTACLE] Error: {e}")
+            time.sleep(2)
+    
+    print("🛑 [OBSTACLE] Thread stopped")
+
+def cleanup_old_people(max_age=60):
+    """Dọn dẹp tracking"""
+    global current_people
+    
+    try:
+        current_time = time.time()
+        to_remove = []
+        
+        for name, last_seen in list(current_people.items()):
+            if current_time - last_seen > max_age:
+                to_remove.append(name)
+        
+        for name in to_remove:
+            del current_people[name]
+        
+        if to_remove:
+            print(f"🗑️ Cleaned {len(to_remove)} old entries")
+    except Exception as e:
+        print(f"⚠️ Cleanup error: {e}")
+
+# ================================================================
+# STREAM CHO WEB
+# ================================================================
+def rtsp_stream():
+    """Stream cho web với thông tin"""
+    
+    print("🎬 [WEB_STREAM] Starting stream with FACE PRIORITY")
+    
+    # Tạo fallback frame
+    fallback_frame = np.zeros((360, 640, 3), dtype=np.uint8)
+    cv2.putText(fallback_frame, "NO CAMERA", (220, 180), 
+                cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+    
+    fps_counter = 0
+    last_fps_time = time.time()
+    last_valid_frame = None
+    last_display_update = 0
+    
+    while stream_active:
+        try:
+            fps_counter += 1
+            
+            # Lấy frame
+            display_frame = None
+            
+            with latest_frame_lock:
+                if latest_frame is not None:
+                    display_frame = latest_frame.copy()
+                    last_valid_frame = display_frame.copy()
+                elif last_valid_frame is not None:
+                    display_frame = last_valid_frame.copy()
+                else:
+                    display_frame = fallback_frame.copy()
+            
+            # Cập nhật face boxes (thường xuyên hơn)
+            current_time = time.time()
+            if camera_connected and display_frame is not None:
+                if current_time - last_display_update > 0.3:  # Giảm tần suất để tiết kiệm CPU
+                    boxes = face_detector.detect_faces_accurate(display_frame)
+                    face_boxes = boxes
+                    last_display_update = current_time
+            
+            # Vẽ boxes nếu có
+            if camera_connected and display_frame is not None:
+                # Vẽ face boxes TRƯỚC (ưu tiên)
+                if face_boxes:
+                    display_frame = draw_face_boxes(display_frame, face_boxes)
+                
+                # Vẽ obstacle boxes SAU (nếu có)
+                if obstacle_boxes:
+                    display_frame = draw_obstacle_boxes(display_frame, obstacle_boxes)
+            
+            # Vẽ overlay thông tin
+            display_frame = draw_overlay_info(display_frame)
+            
+            # Tính và hiển thị FPS
+            if time.time() - last_fps_time >= 1.0:
+                fps = fps_counter
+                fps_counter = 0
+                last_fps_time = time.time()
+                
+                # Hiển thị FPS
+                fps_color = (100, 255, 100) if fps >= 15 else (100, 100, 255)
+                cv2.putText(display_frame, f"FPS: {fps}", 
+                           (display_frame.shape[1] - 100, 65), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.5, fps_color, 1)
+            
+            # Encode frame
+            ret, buffer = cv2.imencode('.jpg', display_frame, [
+                cv2.IMWRITE_JPEG_QUALITY, 80  # Giảm chất lượng để tăng tốc
+            ])
+            
+            if ret:
+                yield (b'--frame\r\n'
+                       b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
+            
+            # Giới hạn FPS stream
+            time.sleep(1/25)  # 25 FPS
+            
+        except Exception as e:
+            print(f"[STREAM] Error: {e}")
+            # Gửi fallback frame
+            ret, buffer = cv2.imencode('.jpg', fallback_frame)
+            if ret:
+                yield (b'--frame\r\n'
+                       b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
+            time.sleep(0.1)
+    
+    print("[STREAM] Stream stopped")
+
+# ================================================================
+# HÀM KHỞI ĐỘNG HỆ THỐNG
+# ================================================================
+def start_rtsp_system():
+    """Khởi động hệ thống RTSP với ưu tiên nhận diện khuôn mặt"""
+    
+    print("\n" + "="*60)
+    print("🚀 RTSP SYSTEM - FACE PRIORITY MODE")
+    print("="*60)
+    print(f"Camera: {RTSP_URL}")
+    print(f"Face Detection: 🎯 HIGH PRIORITY")
+    print(f"  - Min face size: {MIN_FACE_WIDTH}x{MIN_FACE_HEIGHT}px")
+    print(f"  - Min confidence: {FACE_CONFIDENCE_THRESHOLD:.0%}")
+    print(f"  - Stability required: {FACE_STABILITY_THRESHOLD} frames")
+    print(f"  - Priority timeout: {FACE_PRIORITY_TIMEOUT}s")
+    print(f"Obstacle Detection: {'✅ LOW PRIORITY' if OBSTACLE_DETECTION_ENABLED else '❌ DISABLED'}")
+    print(f"  - Max distance: {OBSTACLE_DISTANCE_THRESHOLD}m")
+    print(f"  - Process interval: {OBSTACLE_PROCESS_INTERVAL}s")
+    print(f"Audio Cooldowns: ")
+    print(f"  - Unknown: {UNKNOWN_COOLDOWN}s")
+    print(f"  - Known: {KNOWN_COOLDOWN}s")
+    print(f"  - Obstacle: {OBSTACLE_COOLDOWN}s")
+    print("="*60)
+    
+    # Khởi động camera thread
+    cam_thread = threading.Thread(target=camera_thread, daemon=True, name="CameraThread")
+    cam_thread.start()
+    time.sleep(2)  # Chờ camera kết nối
+    
+    # Khởi động face recognition thread TRƯỚC (ưu tiên cao)
+    face_thread = threading.Thread(target=recognition_thread, daemon=True, name="RecognitionThread")
+    face_thread.start()
+    print("✅ HIGH PRIORITY Face recognition started")
+    
+    # Khởi động obstacle detection thread SAU (ưu tiên thấp)
+    if OBSTACLE_DETECTION_ENABLED and advanced_detector is not None:
+        obstacle_thread = threading.Thread(target=obstacle_detection_thread, daemon=True, name="ObstacleThread")
+        obstacle_thread.start()
+        print("✅ LOW PRIORITY Obstacle detection started")
+    
+    print("✅ All threads started with FACE PRIORITY!")
+    print("🎯 System running in FACE PRIORITY MODE!")
+    print("="*60 + "\n")
+
+def stop_rtsp_system():
+    """Dừng hệ thống"""
+    global stream_active
+    
+    print("\n🛑 Stopping RTSP system...")
+    stream_active = False
+    time.sleep(2)
+    print("System stopped")
+
+# ================================================================
+# MAIN
+# ================================================================
+if __name__ == "__main__":
+    print("🚀 RTSP SYSTEM - FACE PRIORITY MODE")
+    
+    start_rtsp_system()
+    
+    try:
+        # Main loop
+        while True:
+            # Hiển thị status mỗi 15 giây
+            time.sleep(15)
+            
+            print(f"\n📊 SYSTEM STATUS:")
+            print(f"  Camera: {'✅ Connected' if camera_connected else '❌ Disconnected'}")
+            print(f"  Face Tracking: {len(current_people)} people")
+            
+            if len(current_people) > 0:
+                recent = list(current_people.keys())[:3]
+                print(f"  Recent Faces: {recent}")
+            
+            print(f"  Face Boxes: {len(face_boxes)}")
+            print(f"  Face Stability: {face_stability_counter}/{FACE_STABILITY_THRESHOLD}")
+            
+            priority_status = update_priority_status()
+            print(f"  Priority Status: {priority_status}")
+            print(f"  Time since last face: {time.time() - last_face_detected_time:.1f}s")
+            
+            if OBSTACLE_DETECTION_ENABLED:
+                close_obstacles = len([o for o in obstacle_boxes if o.get('estimated_distance', 999) <= OBSTACLE_DISTANCE_THRESHOLD])
+                print(f"  Obstacles (<1m): {close_obstacles}")
+            
+    except KeyboardInterrupt:
+        print("\nStopping system...")
+    finally:
+        stop_rtsp_system()

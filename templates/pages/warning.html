@@ -1,0 +1,925 @@
+{% extends "base.html" %}
+{% block title %}Cảnh báo & Thông báo - VisionMate{% endblock %}
+
+{% block content %}
+<style>
+    /* Variables */
+    :root {
+        --alert-critical: #ff4757;
+        --alert-warning: #ffa502;
+        --alert-info: #2ed573;
+        --alert-security: #3742fa;
+        --alert-bg-critical: rgba(255, 71, 87, 0.08);
+        --alert-bg-warning: rgba(255, 165, 2, 0.08);
+        --alert-bg-info: rgba(46, 213, 115, 0.08);
+        --alert-bg-security: rgba(55, 66, 250, 0.08);
+        --card-shadow: 0 10px 40px rgba(0, 0, 0, 0.07);
+        --card-radius: 20px;
+        --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* Page Header */
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+    .page-title {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #1e293b;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .page-title i {
+        background: linear-gradient(135deg, var(--alert-critical), var(--alert-warning));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        font-size: 2rem;
+    }
+
+    .header-actions {
+        display: flex;
+        gap: 12px;
+    }
+
+    .btn-action {
+        padding: 10px 20px;
+        border-radius: 12px;
+        font-weight: 500;
+        transition: var(--transition);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        border: none;
+        cursor: pointer;
+    }
+
+    .btn-mark-all {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+    }
+
+    .btn-mark-all:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+    }
+
+    .btn-clear-all {
+        background: rgba(255, 71, 87, 0.1);
+        color: var(--alert-critical);
+        border: 1px solid rgba(255, 71, 87, 0.2);
+    }
+
+    .btn-clear-all:hover {
+        background: rgba(255, 71, 87, 0.15);
+        transform: translateY(-2px);
+    }
+
+    /* Alert Tabs */
+    .alert-tabs {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 2rem;
+        padding: 8px;
+        background: rgba(0, 0, 0, 0.02);
+        border-radius: 16px;
+        flex-wrap: wrap;
+    }
+
+    .tab-btn {
+        padding: 12px 24px;
+        border-radius: 12px;
+        border: none;
+        background: transparent;
+        color: #64748b;
+        font-weight: 500;
+        cursor: pointer;
+        transition: var(--transition);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex: 1;
+        justify-content: center;
+        min-width: 140px;
+    }
+
+    .tab-btn:hover {
+        background: rgba(255, 255, 255, 0.8);
+        color: #1e293b;
+    }
+
+    .tab-btn.active {
+        background: white;
+        color: #667eea;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+    }
+
+    .tab-btn i {
+        font-size: 1.1rem;
+    }
+
+    .tab-badge {
+        background: rgba(255, 71, 87, 0.1);
+        color: var(--alert-critical);
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+
+    /* Alert Container */
+    .alert-container {
+        background: white;
+        border-radius: var(--card-radius);
+        box-shadow: var(--card-shadow);
+        overflow: hidden;
+        margin-bottom: 2rem;
+    }
+
+    .alert-header {
+        padding: 1.5rem 2rem;
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.05), rgba(118, 75, 162, 0.05));
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .alert-header h4 {
+        margin: 0;
+        font-weight: 600;
+        color: #1e293b;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .alert-header h4 i {
+        color: #667eea;
+    }
+
+    .alert-actions {
+        display: flex;
+        gap: 10px;
+    }
+
+    .alert-filter {
+        padding: 8px 16px;
+        border-radius: 10px;
+        border: 1px solid #e2e8f0;
+        background: white;
+        color: #64748b;
+        font-size: 0.9rem;
+        cursor: pointer;
+        transition: var(--transition);
+    }
+
+    .alert-filter:hover {
+        border-color: #667eea;
+        color: #667eea;
+    }
+
+    /* Alert List */
+    .alert-list {
+        max-height: 600px;
+        overflow-y: auto;
+    }
+
+    .alert-item {
+        padding: 1.5rem 2rem;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        transition: var(--transition);
+        display: flex;
+        gap: 1.5rem;
+        align-items: flex-start;
+    }
+
+    .alert-item:hover {
+        background: rgba(0, 0, 0, 0.01);
+    }
+
+    .alert-item.unread {
+        background: rgba(255, 243, 243, 0.5);
+        border-left: 4px solid var(--alert-critical);
+    }
+
+    .alert-item.read {
+        opacity: 0.8;
+    }
+
+    .alert-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.4rem;
+        flex-shrink: 0;
+    }
+
+    .alert-critical .alert-icon {
+        background: var(--alert-bg-critical);
+        color: var(--alert-critical);
+    }
+
+    .alert-warning .alert-icon {
+        background: var(--alert-bg-warning);
+        color: var(--alert-warning);
+    }
+
+    .alert-info .alert-icon {
+        background: var(--alert-bg-info);
+        color: var(--alert-info);
+    }
+
+    .alert-security .alert-icon {
+        background: var(--alert-bg-security);
+        color: var(--alert-security);
+    }
+
+    .alert-content {
+        flex: 1;
+    }
+
+    .alert-title {
+        font-weight: 600;
+        color: #1e293b;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .alert-title h5 {
+        margin: 0;
+        font-size: 1.1rem;
+    }
+
+    .alert-time {
+        font-size: 0.85rem;
+        color: #64748b;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .alert-message {
+        color: #475569;
+        line-height: 1.6;
+        margin-bottom: 12px;
+        font-size: 0.95rem;
+    }
+
+    .alert-source {
+        display: inline-block;
+        padding: 4px 12px;
+        background: rgba(102, 126, 234, 0.1);
+        color: #667eea;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 500;
+        margin-right: 10px;
+    }
+
+    .alert-actions-small {
+        display: flex;
+        gap: 12px;
+        margin-top: 12px;
+    }
+
+    .btn-mark-read, .btn-details {
+        padding: 6px 16px;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: var(--transition);
+        border: none;
+    }
+
+    .btn-mark-read {
+        background: rgba(46, 213, 115, 0.1);
+        color: var(--alert-info);
+    }
+
+    .btn-mark-read:hover {
+        background: rgba(46, 213, 115, 0.2);
+    }
+
+    .btn-details {
+        background: rgba(102, 126, 234, 0.1);
+        color: #667eea;
+    }
+
+    .btn-details:hover {
+        background: rgba(102, 126, 234, 0.2);
+    }
+
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+    }
+
+    .empty-icon {
+        width: 120px;
+        height: 120px;
+        margin: 0 auto 2rem;
+        position: relative;
+    }
+
+    .empty-icon .bell {
+        width: 80px;
+        height: 80px;
+        background: linear-gradient(135deg, rgba(255, 71, 87, 0.1), rgba(255, 165, 2, 0.1));
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2.5rem;
+        color: var(--alert-warning);
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        animation: gentleRing 2s infinite ease-in-out;
+    }
+
+    @keyframes gentleRing {
+        0%, 100% { transform: rotate(0deg); }
+        25% { transform: rotate(5deg); }
+        75% { transform: rotate(-5deg); }
+    }
+
+    .empty-state h3 {
+        font-size: 1.8rem;
+        color: #1e293b;
+        margin-bottom: 1rem;
+        font-weight: 600;
+    }
+
+    .empty-state p {
+        color: #64748b;
+        max-width: 400px;
+        margin: 0 auto 2rem;
+        line-height: 1.6;
+    }
+
+    /* Live Alert Notification */
+    .live-alert-notification {
+        position: fixed;
+        top: 100px;
+        right: 30px;
+        width: 350px;
+        background: white;
+        border-radius: var(--card-radius);
+        box-shadow: 0 20px 60px rgba(255, 71, 87, 0.3);
+        z-index: 9999;
+        animation: slideInRight 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        overflow: hidden;
+        border-left: 4px solid var(--alert-critical);
+    }
+
+    @keyframes slideInRight {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+
+    .live-alert-header {
+        background: var(--alert-bg-critical);
+        padding: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        color: var(--alert-critical);
+        font-weight: 600;
+    }
+
+    .live-alert-header i {
+        animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+
+    .live-alert-content {
+        padding: 1.5rem;
+    }
+
+    .live-alert-title {
+        font-weight: 600;
+        color: #1e293b;
+        margin-bottom: 8px;
+    }
+
+    .live-alert-message {
+        color: #475569;
+        font-size: 0.95rem;
+        line-height: 1.5;
+    }
+
+    /* Responsive */
+    @media (max-width: 992px) {
+        .page-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+        
+        .header-actions {
+            width: 100%;
+            justify-content: space-between;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .alert-tabs {
+            flex-direction: column;
+        }
+        
+        .tab-btn {
+            min-width: auto;
+            justify-content: flex-start;
+        }
+        
+        .alert-item {
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .live-alert-notification {
+            width: calc(100% - 40px);
+            right: 20px;
+        }
+    }
+</style>
+
+<div class="container-fluid py-4">
+    <!-- Page Header -->
+    <div class="page-header">
+        <div class="page-title">
+            <i class="fas fa-bell"></i>
+            <div>
+                <h1 class="mb-0">Cảnh báo & Thông báo</h1>
+                <p class="text-muted mb-0" style="font-size: 0.9rem;">Quản lý tất cả cảnh báo hệ thống và thông báo quan trọng</p>
+            </div>
+        </div>
+        <div class="header-actions">
+            <button class="btn-action btn-mark-all" onclick="markAllAsRead()">
+                <i class="fas fa-check-double"></i>
+                Đánh dấu đã đọc
+            </button>
+            <button class="btn-action btn-clear-all" onclick="clearAllAlerts()">
+                <i class="fas fa-trash-alt"></i>
+                Xóa tất cả
+            </button>
+        </div>
+    </div>
+    <!-- Alert Container -->
+    <div class="alert-container">
+        <div class="alert-header">
+            <h4><i class="fas fa-list"></i> Danh sách cảnh báo</h4>
+            <div class="alert-actions">
+                <select class="alert-filter" onchange="sortAlerts(this.value)">
+                    <option value="newest">Mới nhất</option>
+                    <option value="oldest">Cũ nhất</option>
+                    <option value="priority">Mức độ ưu tiên</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="alert-list" id="alertList">
+            <!-- Alert Items -->
+            {% if alerts|length == 0 %}
+            <!-- Empty State -->
+            <div class="empty-state">
+                <div class="empty-icon">
+                    <div class="bell">
+                        <i class="fas fa-bell"></i>
+                    </div>
+                </div>
+                <h3>Chưa có cảnh báo nào</h3>
+                <p>Hệ thống đang hoạt động bình thường. Tất cả cảnh báo và thông báo quan trọng sẽ xuất hiện tại đây.</p>
+                <button class="btn-action btn-mark-all" onclick="testNotification()">
+                    <i class="fas fa-bell"></i>
+                    Thử nghiệm thông báo
+                </button>
+            </div>
+            {% else %}
+                {% for alert in alerts %}
+                <div class="alert-item alert-{{ alert.priority }} {% if not alert.read %}unread{% else %}read{% endif %}" data-priority="{{ alert.priority }}" data-read="{{ alert.read|lower }}">
+                    <div class="alert-icon">
+                        {% if alert.priority == 'critical' %}
+                        <i class="fas fa-exclamation-triangle"></i>
+                        {% elif alert.priority == 'warning' %}
+                        <i class="fas fa-exclamation-circle"></i>
+                        {% elif alert.priority == 'security' %}
+                        <i class="fas fa-shield-alt"></i>
+                        {% else %}
+                        <i class="fas fa-info-circle"></i>
+                        {% endif %}
+                    </div>
+                    <div class="alert-content">
+                        <div class="alert-title">
+                            <h5>{{ alert.title }}</h5>
+                            <div class="alert-time">
+                                <i class="far fa-clock"></i>
+                                {{ alert.timestamp }}
+                            </div>
+                        </div>
+                        <p class="alert-message">{{ alert.message }}</p>
+                        <div>
+                            <span class="alert-source">{{ alert.source }}</span>
+                            {% if alert.device %}
+                            <span class="alert-source">
+                                <i class="fas fa-microchip"></i> {{ alert.device }}
+                            </span>
+                            {% endif %}
+                        </div>
+                        <div class="alert-actions-small">
+                            {% if not alert.read %}
+                            <button class="btn-mark-read" onclick="markAsRead('{{ alert.id }}')">
+                                <i class="fas fa-check"></i> Đánh dấu đã đọc
+                            </button>
+                            {% endif %}
+                            <button class="btn-details" onclick="viewAlertDetails('{{ alert.id }}')">
+                                <i class="fas fa-search"></i> Xem chi tiết
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Live Alert Notification (Hidden by default) -->
+<div id="liveAlertNotification" class="live-alert-notification" style="display: none;">
+    <div class="live-alert-header">
+        <i class="fas fa-bell animated-bell"></i>
+        <span>CẢNH BÁO MỚI</span>
+    </div>
+    <div class="live-alert-content">
+        <div class="live-alert-title" id="liveAlertTitle"></div>
+        <p class="live-alert-message" id="liveAlertMessage"></p>
+        <button class="btn-mark-read" onclick="dismissLiveAlert()" style="margin-top: 12px;">
+            <i class="fas fa-times"></i> Đóng
+        </button>
+    </div>
+</div>
+
+<!-- Socket.IO -->
+<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+
+<script>
+    const socket = io();
+    let currentFilter = 'all';
+
+    // Socket event listeners
+    socket.on("alert_event", (data) => {
+        showLiveAlert(data);
+        addAlertToList(data);
+        updateTabBadges();
+    });
+
+    socket.on("alert_resolved", (data) => {
+        updateAlertStatus(data.alertId, 'resolved');
+    });
+
+    // Live alert notification
+    function showLiveAlert(data) {
+        const notification = document.getElementById('liveAlertNotification');
+        const title = document.getElementById('liveAlertTitle');
+        const message = document.getElementById('liveAlertMessage');
+        
+        title.textContent = data.title;
+        message.textContent = data.message;
+        
+        notification.style.display = 'block';
+        notification.style.borderLeft = `4px solid ${getPriorityColor(data.priority)}`;
+        
+        // Auto dismiss after 10 seconds
+        setTimeout(() => {
+            notification.style.display = 'none';
+        }, 10000);
+        
+        // Play notification sound
+        playNotificationSound();
+    }
+
+    function dismissLiveAlert() {
+        document.getElementById('liveAlertNotification').style.display = 'none';
+    }
+
+    // Add new alert to list
+    function addAlertToList(data) {
+        const alertList = document.getElementById('alertList');
+        const emptyState = alertList.querySelector('.empty-state');
+        
+        if (emptyState) {
+            emptyState.remove();
+        }
+        
+        const alertItem = document.createElement('div');
+        alertItem.className = `alert-item alert-${data.priority} unread`;
+        alertItem.dataset.priority = data.priority;
+        alertItem.dataset.read = 'false';
+        
+        const icon = getPriorityIcon(data.priority);
+        const timestamp = new Date().toLocaleString('vi-VN', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        
+        alertItem.innerHTML = `
+            <div class="alert-icon">${icon}</div>
+            <div class="alert-content">
+                <div class="alert-title">
+                    <h5>${data.title}</h5>
+                    <div class="alert-time">
+                        <i class="far fa-clock"></i>${timestamp}
+                    </div>
+                </div>
+                <p class="alert-message">${data.message}</p>
+                <div>
+                    <span class="alert-source">${data.source || 'Hệ thống'}</span>
+                    ${data.device ? `<span class="alert-source"><i class="fas fa-microchip"></i> ${data.device}</span>` : ''}
+                </div>
+                <div class="alert-actions-small">
+                    <button class="btn-mark-read" onclick="markAsRead('${data.id || Date.now()}')">
+                        <i class="fas fa-check"></i> Đánh dấu đã đọc
+                    </button>
+                    <button class="btn-details" onclick="viewAlertDetails('${data.id || Date.now()}')">
+                        <i class="fas fa-search"></i> Xem chi tiết
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        alertList.insertBefore(alertItem, alertList.firstChild);
+        updateTabBadges();
+    }
+
+    // Filter alerts
+    function filterAlerts(filter) {
+        currentFilter = filter;
+        const alertItems = document.querySelectorAll('.alert-item');
+        const tabButtons = document.querySelectorAll('.tab-btn');
+        
+        // Update active tab
+        tabButtons.forEach(btn => btn.classList.remove('active'));
+        event.target.classList.add('active');
+        
+        // Filter items
+        alertItems.forEach(item => {
+            const priority = item.dataset.priority;
+            const isRead = item.dataset.read === 'true';
+            
+            let show = false;
+            
+            switch(filter) {
+                case 'all':
+                    show = true;
+                    break;
+                case 'critical':
+                case 'warning':
+                case 'info':
+                case 'security':
+                    show = priority === filter;
+                    break;
+                case 'unread':
+                    show = !isRead;
+                    break;
+            }
+            
+            item.style.display = show ? 'flex' : 'none';
+        });
+    }
+
+    // Sort alerts
+    function sortAlerts(order) {
+        const alertList = document.getElementById('alertList');
+        const items = Array.from(alertList.querySelectorAll('.alert-item:not(.empty-state)'));
+        
+        items.sort((a, b) => {
+            if (order === 'newest') {
+                return -1; // Most recent first
+            } else if (order === 'oldest') {
+                return 1; // Oldest first
+            } else if (order === 'priority') {
+                const priorityOrder = {critical: 0, warning: 1, security: 2, info: 3};
+                const aPriority = priorityOrder[a.dataset.priority] || 4;
+                const bPriority = priorityOrder[b.dataset.priority] || 4;
+                return aPriority - bPriority;
+            }
+            return 0;
+        });
+        
+        // Reorder items
+        items.forEach(item => alertList.appendChild(item));
+    }
+
+    // Mark alert as read
+    function markAsRead(alertId) {
+        const alertItem = document.querySelector(`[onclick*="${alertId}"]`).closest('.alert-item');
+        alertItem.classList.remove('unread');
+        alertItem.classList.add('read');
+        alertItem.dataset.read = 'true';
+        
+        // Update button
+        const btn = alertItem.querySelector('.btn-mark-read');
+        if (btn) {
+            btn.innerHTML = '<i class="fas fa-check-circle"></i> Đã đọc';
+            btn.disabled = true;
+            btn.style.opacity = '0.7';
+        }
+        
+        // Send to server
+        socket.emit('alert_read', { alertId });
+        updateTabBadges();
+    }
+
+    // Mark all as read
+    function markAllAsRead() {
+        document.querySelectorAll('.alert-item.unread').forEach(item => {
+            item.classList.remove('unread');
+            item.classList.add('read');
+            item.dataset.read = 'true';
+            
+            const btn = item.querySelector('.btn-mark-read');
+            if (btn) {
+                btn.innerHTML = '<i class="fas fa-check-circle"></i> Đã đọc';
+                btn.disabled = true;
+                btn.style.opacity = '0.7';
+            }
+        });
+        
+        socket.emit('mark_all_read');
+        updateTabBadges();
+    }
+
+    // Clear all alerts
+    function clearAllAlerts() {
+        if (confirm('Bạn có chắc chắn muốn xóa tất cả cảnh báo?')) {
+            const alertList = document.getElementById('alertList');
+            const items = alertList.querySelectorAll('.alert-item:not(.empty-state)');
+            
+            items.forEach(item => item.remove());
+            
+            // Show empty state
+            if (alertList.querySelectorAll('.alert-item').length === 0) {
+                alertList.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">
+                            <div class="bell">
+                                <i class="fas fa-bell"></i>
+                            </div>
+                        </div>
+                        <h3>Chưa có cảnh báo nào</h3>
+                        <p>Hệ thống đang hoạt động bình thường. Tất cả cảnh báo và thông báo quan trọng sẽ xuất hiện tại đây.</p>
+                        <button class="btn-action btn-mark-all" onclick="testNotification()">
+                            <i class="fas fa-bell"></i>
+                            Thử nghiệm thông báo
+                        </button>
+                    </div>
+                `;
+            }
+            
+            socket.emit('clear_all_alerts');
+            updateTabBadges();
+        }
+    }
+
+    // View alert details
+    function viewAlertDetails(alertId) {
+        // Implement modal or navigation to detail page
+        alert(`Xem chi tiết cảnh báo: ${alertId}`);
+    }
+
+    // Update tab badges
+    function updateTabBadges() {
+        const items = document.querySelectorAll('.alert-item:not(.empty-state)');
+        const counts = {
+            critical: 0,
+            warning: 0,
+            info: 0,
+            security: 0,
+            unread: 0,
+            total: items.length
+        };
+        
+        items.forEach(item => {
+            const priority = item.dataset.priority;
+            const isRead = item.dataset.read === 'true';
+            
+            if (priority in counts) counts[priority]++;
+            if (!isRead) counts.unread++;
+        });
+        
+        // Update tab badges
+        const tabs = document.querySelectorAll('.tab-btn');
+        tabs.forEach(tab => {
+            const badge = tab.querySelector('.tab-badge');
+            if (badge) {
+                const type = tab.onclick.toString().match(/filterAlerts\('(\w+)'\)/)[1];
+                if (type === 'unread') {
+                    badge.textContent = counts.unread;
+                } else if (type === 'all') {
+                    badge.textContent = counts.total;
+                } else if (counts[type] !== undefined) {
+                    badge.textContent = counts[type];
+                }
+            }
+        });
+    }
+
+    // Helper functions
+    function getPriorityIcon(priority) {
+        const icons = {
+            critical: '<i class="fas fa-exclamation-triangle"></i>',
+            warning: '<i class="fas fa-exclamation-circle"></i>',
+            info: '<i class="fas fa-info-circle"></i>',
+            security: '<i class="fas fa-shield-alt"></i>'
+        };
+        return icons[priority] || icons.info;
+    }
+
+    function getPriorityColor(priority) {
+        const colors = {
+            critical: '#ff4757',
+            warning: '#ffa502',
+            info: '#2ed573',
+            security: '#3742fa'
+        };
+        return colors[priority] || colors.info;
+    }
+
+    function playNotificationSound() {
+        // Simple notification sound using Web Audio API
+        try {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.value = 800;
+            oscillator.type = 'sine';
+            
+            gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+            gainNode.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 0.1);
+            gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.3);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.3);
+        } catch (e) {
+            console.log('Audio not supported');
+        }
+    }
+
+    // Test notification function
+    function testNotification() {
+        const testAlert = {
+            id: 'test_' + Date.now(),
+            title: 'Thử nghiệm thông báo',
+            message: 'Đây là thông báo thử nghiệm từ hệ thống VisionMate.',
+            priority: 'info',
+            source: 'Hệ thống',
+            device: 'Camera 01'
+        };
+        
+        showLiveAlert(testAlert);
+        addAlertToList(testAlert);
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+        updateTabBadges();
+        
+        // Set up filter for current view
+        filterAlerts('all');
+    });
+</script>
+
+{% endblock %}

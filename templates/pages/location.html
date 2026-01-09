@@ -1,0 +1,2151 @@
+{% extends "base.html" %}
+
+{% set page_title = "Vị trí thiết bị" %}
+{% block title %}Vị trí thiết bị - VisionMate{% endblock %}
+
+{% block content %}
+<style>
+:root {
+    --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --success-gradient: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 100%);
+    --warning-gradient: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+    --info-gradient: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+    --card-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+    --hover-shadow: 0 20px 40px rgba(102, 126, 234, 0.15);
+    --glass-bg: rgba(255, 255, 255, 0.92);
+    --glass-border: rgba(255, 255, 255, 0.25);
+}
+
+body {
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    min-height: 100vh;
+}
+
+/* Header mới */
+.main-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 20px;
+    margin-bottom: 1.5rem;
+    padding: 1.5rem;
+    color: white;
+    box-shadow: 0 10px 30px rgba(102, 126, 234, 0.25);
+    position: relative;
+    overflow: hidden;
+}
+
+.main-header::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(255,255,255,0.1) 1px, transparent 1px);
+    background-size: 30px 30px;
+    opacity: 0.2;
+    pointer-events: none;
+}
+
+.header-content {
+    position: relative;
+    z-index: 1;
+}
+
+.header-icon-wrapper {
+    background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 1rem;
+    box-shadow: 0 4px 12px rgba(251, 191, 36, 0.3);
+}
+
+.header-icon {
+    font-size: 1.75rem;
+    color: white;
+}
+
+/* Stats cards - Chỉ còn 2 card */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+@media (min-width: 768px) {
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+.stats-card {
+    background: var(--glass-bg);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    padding: 1.25rem;
+    transition: all 0.3s ease;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.stats-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+    background: linear-gradient(to bottom, #667eea, #764ba2);
+}
+
+.stats-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--hover-shadow);
+}
+
+.stats-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    flex-shrink: 0;
+}
+
+.stats-icon-primary {
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.15) 0%, rgba(102, 126, 234, 0.1) 100%);
+    color: #667eea;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+}
+
+.stats-icon-success {
+    background: linear-gradient(135deg, rgba(14, 165, 233, 0.15) 0%, rgba(14, 165, 233, 0.1) 100%);
+    color: #0ea5e9;
+    box-shadow: 0 4px 12px rgba(14, 165, 233, 0.2);
+}
+
+.stats-content {
+    flex: 1;
+}
+
+.stats-content h6 {
+    color: #6b7280;
+    font-size: 0.875rem;
+    margin-bottom: 0.25rem;
+    font-weight: 500;
+}
+
+.stats-content h3 {
+    color: #1f2937;
+    margin-bottom: 0.25rem;
+    font-weight: 700;
+    font-size: 1.75rem;
+}
+
+.stats-content small {
+    color: #9ca3af;
+    font-size: 0.8rem;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+/* Date Filter Styling */
+.date-filter-card {
+    background: var(--glass-bg);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: var(--card-shadow);
+    position: relative;
+    overflow: hidden;
+}
+
+.date-filter-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 100px;
+    height: 100px;
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(102, 126, 234, 0.05) 100%);
+    border-radius: 0 0 0 100px;
+    pointer-events: none;
+}
+
+.date-filter-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.date-filter-icon {
+    width: 48px;
+    height: 48px;
+    background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.25rem;
+    box-shadow: 0 4px 12px rgba(251, 191, 36, 0.3);
+}
+
+.date-filter-title h4 {
+    color: #1f2937;
+    margin-bottom: 0.25rem;
+    font-weight: 600;
+}
+
+.date-filter-title p {
+    color: #6b7280;
+    font-size: 0.875rem;
+    margin-bottom: 0;
+}
+
+.date-range-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.date-range-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.date-range-item label {
+    color: #374151;
+    font-weight: 500;
+    font-size: 0.875rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.date-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.date-input-wrapper i {
+    position: absolute;
+    left: 1rem;
+    color: #9ca3af;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.date-input {
+    width: 100%;
+    padding: 0.75rem 1rem 0.75rem 3rem;
+    border: 2px solid #e5e7eb;
+    border-radius: 10px;
+    font-size: 0.875rem;
+    color: #1f2937;
+    transition: all 0.2s ease;
+    background: white;
+    position: relative;
+}
+
+.date-input:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.quick-date-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+.quick-date-btn {
+    padding: 0.5rem 1rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background: white;
+    color: #4b5563;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.quick-date-btn:hover {
+    border-color: #667eea;
+    color: #667eea;
+    background: rgba(102, 126, 234, 0.05);
+}
+
+.quick-date-btn.active {
+    background: #667eea;
+    color: white;
+    border-color: #667eea;
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+.date-filter-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+
+.btn-filter {
+    flex: 1;
+    padding: 0.875rem 1.5rem;
+    border-radius: 10px;
+    border: none;
+    font-weight: 600;
+    font-size: 0.875rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.btn-filter-primary {
+    background: var(--primary-gradient);
+    color: white;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.btn-filter-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+}
+
+.btn-filter-secondary {
+    background: white;
+    color: #667eea;
+    border: 2px solid #667eea;
+}
+
+.btn-filter-secondary:hover {
+    background: #667eea;
+    color: white;
+    transform: translateY(-2px);
+}
+
+.filter-tag {
+    background: rgba(102, 126, 234, 0.1);
+    border: 1px solid rgba(102, 126, 234, 0.2);
+    border-radius: 20px;
+    padding: 0.375rem 0.75rem;
+    font-size: 0.75rem;
+    color: #667eea;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* Card panels */
+.card-glass {
+    background: var(--glass-bg);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--glass-border);
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: var(--card-shadow);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    margin-bottom: 1.5rem;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.card-glass:hover {
+    box-shadow: var(--hover-shadow);
+    transform: translateY(-3px);
+}
+
+.card-header-gradient {
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.95) 0%, rgba(118, 75, 162, 0.95) 100%);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.25);
+    padding: 1.25rem 1.5rem !important;
+}
+
+.panel-icon {
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.125rem;
+    margin-right: 0.75rem;
+    box-shadow: 0 4px 12px rgba(251, 191, 36, 0.3);
+}
+
+/* Table styling */
+.table-container {
+    flex: 1;
+    overflow: auto;
+    min-height: 300px;
+    max-height: calc(100vh - 500px);
+}
+
+.table-custom {
+    --bs-table-bg: transparent;
+    margin-bottom: 0;
+    font-size: 0.9rem;
+    width: 100%;
+}
+
+.table-custom thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.table-custom th {
+    font-weight: 600;
+    color: #667eea;
+    padding: 1rem 1.25rem;
+    border-bottom: 2px solid rgba(102, 126, 234, 0.1);
+    text-transform: uppercase;
+    font-size: 0.8rem;
+    letter-spacing: 0.3px;
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(102, 126, 234, 0.05) 100%);
+    backdrop-filter: blur(10px);
+}
+
+.table-custom tbody tr {
+    transition: all 0.2s ease;
+    border-left: 3px solid transparent;
+}
+
+.table-custom tbody tr:hover {
+    background: linear-gradient(90deg, rgba(102, 126, 234, 0.04) 0%, rgba(102, 126, 234, 0.02) 100%);
+    border-left: 3px solid #667eea;
+    transform: translateX(3px);
+}
+
+.table-custom td {
+    padding: 1rem 1.25rem;
+    vertical-align: middle;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.03);
+}
+
+/* Custom scrollbar */
+.custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: #667eea rgba(102, 126, 234, 0.1);
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: rgba(102, 126, 234, 0.05);
+    border-radius: 10px;
+    margin: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 10px;
+}
+
+/* Button styles */
+.btn-gradient {
+    background: var(--primary-gradient);
+    border: none;
+    color: white;
+    padding: 0.625rem 1.25rem;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 0.875rem;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.btn-gradient:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+    color: white;
+}
+
+.btn-outline-gradient {
+    background: transparent;
+    border: 2px solid #667eea;
+    color: #667eea;
+    padding: 0.625rem 1.25rem;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 0.875rem;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.btn-outline-gradient:hover {
+    background: var(--primary-gradient);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(102, 126, 234, 0.25);
+}
+
+/* Map container */
+#map-container {
+    position: relative;
+    border-radius: 16px;
+    overflow: hidden;
+    height: 500px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+#map {
+    height: 100%;
+    width: 100%;
+    z-index: 1;
+}
+
+.map-controls {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.map-control-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: white;
+    border: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #667eea;
+    font-size: 1rem;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.map-control-btn:hover {
+    background: #667eea;
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(102, 126, 234, 0.25);
+}
+
+/* Loading animation */
+.loading-spinner {
+    display: inline-block;
+    width: 60px;
+    height: 60px;
+    position: relative;
+}
+
+.loading-spinner div {
+    position: absolute;
+    width: 48px;
+    height: 48px;
+    margin: 6px;
+    border: 5px solid #667eea;
+    border-radius: 50%;
+    animation: loading-spinner 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+    border-color: #667eea transparent transparent transparent;
+}
+
+.loading-spinner div:nth-child(1) {
+    animation-delay: -0.45s;
+}
+
+.loading-spinner div:nth-child(2) {
+    animation-delay: -0.3s;
+}
+
+.loading-spinner div:nth-child(3) {
+    animation-delay: -0.15s;
+}
+
+@keyframes loading-spinner {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+/* Status indicators */
+.status-indicator {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 6px;
+    position: relative;
+}
+
+.status-online {
+    background: #10b981;
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 8px rgba(16, 185, 129, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+    }
+}
+
+/* Badges */
+.badge-gradient {
+    background: var(--primary-gradient);
+    padding: 0.375rem 0.75rem;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 0.75rem;
+    border: none;
+}
+
+/* Toast notifications */
+.toast-custom {
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(10px);
+    background: rgba(255, 255, 255, 0.95);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    margin-bottom: 0.75rem;
+    max-width: 350px;
+}
+
+.toast-header-gradient {
+    background: var(--primary-gradient);
+    color: white;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Map footer info */
+.map-footer-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.75rem;
+    margin-top: 1rem;
+}
+
+@media (max-width: 768px) {
+    .map-footer-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 480px) {
+    .map-footer-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.map-footer-item {
+    background: white;
+    border-radius: 10px;
+    padding: 0.875rem;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    transition: all 0.2s ease;
+    border: 1px solid #f3f4f6;
+}
+
+.map-footer-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.map-footer-item small {
+    color: #6b7280;
+    font-size: 0.8rem;
+    display: block;
+    margin-bottom: 0.25rem;
+}
+
+.map-footer-item strong {
+    color: #667eea;
+    font-size: 1rem;
+    display: block;
+    font-weight: 600;
+}
+
+/* Empty state */
+.empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+}
+
+.empty-state i {
+    font-size: 3rem;
+    color: #d1d5db;
+    margin-bottom: 1rem;
+}
+
+.empty-state h5 {
+    color: #6b7280;
+    margin-bottom: 0.5rem;
+}
+
+.empty-state p {
+    color: #9ca3af;
+    margin-bottom: 1.5rem;
+}
+
+/* Loading Overlay */
+#loadingOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(5px);
+    z-index: 10000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Animation cho dữ liệu mới */
+@keyframes highlight {
+    0% {
+        background-color: rgba(102, 126, 234, 0.15);
+    }
+    100% {
+        background-color: transparent;
+    }
+}
+
+.new-data {
+    animation: highlight 1.5s ease-out;
+}
+
+/* Heatmap legend */
+.heatmap-legend {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 10px;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.75rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+}
+
+/* Badge styles */
+.badge-success-gradient {
+    background: var(--success-gradient);
+    padding: 0.375rem 0.75rem;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 0.75rem;
+    border: none;
+}
+
+/* Utility classes */
+.flex-column {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.flex-grow-1 {
+    flex-grow: 1;
+}
+
+.mt-auto {
+    margin-top: auto;
+}
+</style>
+
+<div class="container-fluid py-3">
+
+    <!-- Header chính mới -->
+    <div class="main-header">
+        <div class="header-content">
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center">
+                <div class="mb-3 mb-md-0">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="position-relative">
+                            <div class="header-icon-wrapper">
+                                <i class="fas fa-satellite-dish header-icon"></i>
+                            </div>
+                            <span class="status-indicator status-online position-absolute top-0 start-100 translate-middle"></span>
+                        </div>
+                        <div>
+                            <h1 class="h3 fw-bold mb-1 text-white"><i class="fas fa-map-marked-alt me-2"></i> Bản đồ định vị thiết bị</h1>
+                            <p class="mb-0 text-white opacity-90">Theo dõi và quản lý vị trí thiết bị theo thời gian thực</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="d-flex flex-wrap gap-2">
+                    <button class="btn btn-light btn-gradient px-3" onclick="refreshLocationOnMap()" id="mapRefreshBtn">
+                        <i class="fas fa-sync-alt me-1"></i>
+                        Cập nhật
+                    </button>
+                    <button class="btn btn-outline-light btn-outline-gradient px-3" onclick="exportLocationData()" id="exportBtn">
+                        <i class="fas fa-download me-1"></i>
+                        Xuất CSV
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats cards - CHỈ CÒN 2 CARD -->
+    <div class="stats-grid">
+        <div class="stats-card">
+            <div class="stats-icon stats-icon-primary">
+                <i class="fas fa-map-marker-alt"></i>
+            </div>
+            <div class="stats-content">
+                <h6>Tổng vị trí</h6>
+                <h3 class="mb-1" id="total-locations">0</h3>
+                <small id="location-trend-info">
+                    <i class="fas fa-chart-line me-1"></i>
+                    <span>Đang tải...</span>
+                </small>
+            </div>
+        </div>
+        
+        <div class="stats-card">
+            <div class="stats-icon stats-icon-success">
+                <i class="fas fa-clock"></i>
+            </div>
+            <div class="stats-content">
+                <h6>Cập nhật gần nhất</h6>
+                <h5 class="mb-1" id="last-update">--:--:--</h5>
+                <small id="update-duration">
+                    <i class="fas fa-history me-1"></i>
+                    <span>-- phút trước</span>
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Date Filter Card -->
+    <div class="date-filter-card">
+        <div class="date-filter-header">
+            <div class="date-filter-icon">
+                <i class="fas fa-calendar-alt"></i>
+            </div>
+            <div class="date-filter-title">
+                <h4>Bộ lọc theo ngày</h4>
+                <p>Chọn khoảng thời gian để xem dữ liệu vị trí</p>
+            </div>
+        </div>
+        
+        <div class="date-range-grid">
+            <div class="date-range-item">
+                <label for="start-date">
+                    <i class="fas fa-calendar-day"></i>
+                    Từ ngày
+                </label>
+                <div class="date-input-wrapper">
+                    <i class="fas fa-calendar-alt"></i>
+                    <input type="date" class="date-input" id="start-date">
+                </div>
+            </div>
+            
+            <div class="date-range-item">
+                <label for="end-date">
+                    <i class="fas fa-calendar-day"></i>
+                    Đến ngày
+                </label>
+                <div class="date-input-wrapper">
+                    <i class="fas fa-calendar-alt"></i>
+                    <input type="date" class="date-input" id="end-date">
+                </div>
+            </div>
+        </div>
+        
+        <!-- Quick Date Buttons -->
+        <div class="quick-date-buttons">
+            <button class="quick-date-btn" onclick="setDateRange('today')">Hôm nay</button>
+            <button class="quick-date-btn" onclick="setDateRange('yesterday')">Hôm qua</button>
+            <button class="quick-date-btn" onclick="setDateRange('week')">Tuần này</button>
+            <button class="quick-date-btn" onclick="setDateRange('month')">Tháng này</button>
+            <button class="quick-date-btn" onclick="setDateRange('lastmonth')">Tháng trước</button>
+        </div>
+        
+        <!-- Filter Actions -->
+        <div class="date-filter-actions">
+            <button class="btn-filter btn-filter-secondary" onclick="clearDateFilter()">
+                <i class="fas fa-times"></i>
+                Xóa lọc
+            </button>
+            <button class="btn-filter btn-filter-primary" onclick="applyDateFilter()">
+                <i class="fas fa-filter"></i>
+                Áp dụng bộ lọc
+            </button>
+        </div>
+        
+        <!-- Active Filter Tag -->
+        <div id="active-filter-tag" style="display: none; margin-top: 1rem;">
+            <span class="filter-tag">
+                <i class="fas fa-filter"></i>
+                Đang lọc: <span id="filter-text"></span>
+                <button class="btn btn-link btn-sm p-0" onclick="clearDateFilter()" style="color: inherit;">
+                    <i class="fas fa-times"></i>
+                </button>
+            </span>
+        </div>
+    </div>
+
+    <div class="row g-3" style="min-height: 600px;">
+        <!-- History Panel -->
+        <div class="col-lg-5 d-flex flex-column">
+            <div class="card card-glass h-100 d-flex flex-column">
+                <div class="card-header-gradient py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <div class="panel-icon">
+                                <i class="fas fa-history"></i>
+                            </div>
+                            <div>
+                                <h5 class="fw-bold mb-1 text-white">Lịch sử di chuyển</h5>
+                                <p class="mb-0 text-white opacity-90 small">Nhật ký vị trí thiết bị</p>
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-sm btn-light" onclick="refreshLocationHistory()" id="historyRefreshBtn">
+                                <i class="fas fa-sync-alt"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Table container sẽ scroll khi cần -->
+                <div class="table-container custom-scrollbar">
+                    <table class="table table-custom align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th class="ps-3" width="30%">Thiết bị</th>
+                                <th width="25%">Thời gian</th>
+                                <th width="30%">Tọa độ</th>
+                                <th class="text-center" width="15%">Hành động</th>
+                            </tr>
+                        </thead>
+                        <tbody id="location-table-body">
+                            <tr>
+                                <td colspan="4" class="text-center py-4">
+                                    <div class="loading-spinner mx-auto"></div>
+                                    <p class="mt-2 text-muted small">Đang tải dữ liệu...</p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="card-footer bg-white border-top py-2 px-3 mt-auto">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <small class="text-muted">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Click vào hàng để xem trên bản đồ
+                        </small>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge badge-gradient">
+                                <span id="displayed-count">0</span> bản ghi
+                            </span>
+                            <div class="dropdown">
+                                <button class="btn btn-sm btn-outline-gradient px-2 py-1 dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                    <i class="fas fa-ellipsis-h"></i>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    <li><a class="dropdown-item" href="#" onclick="clearHistory()"><i class="fas fa-trash me-2"></i>Xóa lịch sử</a></li>
+                                    <li><a class="dropdown-item" href="#" onclick="toggleHeatmap()"><i class="fas fa-fire me-2"></i>Bật Heatmap</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item" href="#" onclick="showRouteHistory()"><i class="fas fa-route me-2"></i>Xem tuyến đường</a></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Map Panel -->
+        <div class="col-lg-7 d-flex flex-column">
+            <div class="card card-glass h-100 d-flex flex-column">
+                <div class="card-header-gradient py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <div class="panel-icon">
+                                <i class="fas fa-map"></i>
+                            </div>
+                            <div>
+                                <h5 class="fw-bold mb-1 text-white">Bản đồ trực tuyến</h5>
+                                <p class="mb-0 text-white opacity-90 small">Theo dõi vị trí thời gian thực</p>
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge badge-success-gradient px-3">
+                                <i class="fas fa-satellite-dish me-1"></i>
+                                GPS Live
+                            </span>
+                            <span class="badge badge-gradient px-3" id="marker-count">
+                                <i class="fas fa-map-pin me-1"></i>
+                                <span>0</span> điểm
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Map container -->
+                <div class="flex-grow-1">
+                    <div id="map-container">
+                        <div id="map"></div>
+                        <div class="map-controls">
+                            <button class="map-control-btn" onclick="centerMap()" title="Center map">
+                                <i class="fas fa-bullseye"></i>
+                            </button>
+                            <button class="map-control-btn" onclick="toggleSatellite()" title="Satellite view">
+                                <i class="fas fa-satellite"></i>
+                            </button>
+                            <button class="map-control-btn" onclick="zoomIn()" title="Zoom in">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                            <button class="map-control-btn" onclick="zoomOut()" title="Zoom out">
+                                <i class="fas fa-minus"></i>
+                            </button>
+                            <button class="map-control-btn" onclick="locateUser()" title="My location">
+                                <i class="fas fa-location-crosshairs"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Map footer với thông tin chi tiết -->
+                <div class="card-footer bg-white border-top py-3 mt-auto">
+                    <div class="map-footer-grid">
+                        <div class="map-footer-item">
+                            <small><i class="fas fa-crosshairs me-1"></i> Latitude</small>
+                            <strong id="current-lat">-</strong>
+                        </div>
+                        <div class="map-footer-item">
+                            <small><i class="fas fa-crosshairs me-1"></i> Longitude</small>
+                            <strong id="current-lng">-</strong>
+                        </div>
+                        <div class="map-footer-item">
+                            <small><i class="fas fa-microchip me-1"></i> Thiết bị</small>
+                            <strong id="current-device">-</strong>
+                        </div>
+                        <div class="map-footer-item">
+                            <small><i class="fas fa-clock me-1"></i> Cập nhật</small>
+                            <strong id="current-time">-</strong>
+                        </div>
+                    </div>
+                    
+                    <!-- Heatmap legend -->
+                    <div class="heatmap-legend" id="heatmapLegend" style="display: none;">
+                        <small class="fw-bold">Mật độ di chuyển:</small>
+                        <div class="d-flex align-items-center gap-1">
+                            <span style="width: 16px; height: 8px; background: #667eea; border-radius: 2px;"></span>
+                            <small>Thấp</small>
+                        </div>
+                        <div class="d-flex align-items-center gap-1">
+                            <span style="width: 16px; height: 8px; background: #f59e0b; border-radius: 2px;"></span>
+                            <small>Cao</small>
+                        </div>
+                        <button class="btn btn-sm btn-outline-danger ms-2 py-0 px-2" onclick="toggleHeatmap()">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    
+                    <!-- Control buttons -->
+                    <div class="d-flex justify-content-center gap-2 mt-3">
+                        <button class="btn btn-gradient btn-sm" onclick="showRouteHistory()">
+                            <i class="fas fa-route me-1"></i> Xem tuyến đường
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast Container -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 9999">
+    <div id="toastContainer"></div>
+</div>
+
+<!-- Loading Overlay -->
+<div class="position-fixed top-0 start-0 w-100 h-100 bg-dark bg-opacity-25" id="loadingOverlay" style="display: none; z-index: 10000;">
+    <div class="d-flex flex-column align-items-center justify-content-center h-100">
+        <div class="loading-spinner mb-3">
+            <div></div><div></div><div></div><div></div>
+        </div>
+        <h5 class="text-white mb-1">Đang xử lý...</h5>
+        <p class="text-white opacity-75 small" id="loadingMessage">Vui lòng chờ trong giây lát</p>
+    </div>
+</div>
+
+<!-- Location Detail Modal -->
+<div class="modal fade" id="locationDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-gradient-primary text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-map-marker-alt me-2"></i>
+                    Chi tiết vị trí
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="location-detail-content">
+                    <!-- Content will be loaded here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Đóng</button>
+                <button type="button" class="btn btn-primary" id="focus-on-map-btn">
+                    <i class="fas fa-bullseye me-1"></i> Xem trên bản đồ
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block custom_js %}
+<script src="https://cdn.socket.io/4.5.0/socket.io.min.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+
+<script>
+// =========================================================
+// Biến toàn cục và cấu hình
+// =========================================================
+let map;
+let currentMarker = null;
+let markers = [];
+let markerCluster = null;
+let satelliteLayer = null;
+let streetLayer = null;
+let isSatelliteView = false;
+let heatmapLayer = null;
+let isHeatmapVisible = false;
+let routeLayer = null;
+let locationHistory = [];
+let currentFilter = null;
+let currentDetailLocation = null;
+let autoRefreshInterval = null;
+
+// =========================================================
+// Khởi tạo bản đồ
+// =========================================================
+function initMap() {
+    try {
+        const mapElement = document.getElementById("map");
+        if (!mapElement) {
+            throw new Error("Không tìm thấy element #map");
+        }
+
+        map = L.map("map", {
+            center: [10.852488, 106.770025],
+            zoom: 13,
+            zoomControl: false,
+            attributionControl: true,
+            fadeAnimation: true,
+            markerZoomAnimation: true,
+            scrollWheelZoom: true
+        });
+        
+        streetLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+            maxZoom: 19,
+        }).addTo(map);
+
+        satelliteLayer = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+            attribution: '© Esri',
+            maxZoom: 19,
+        });
+
+        markerCluster = L.markerClusterGroup({
+            maxClusterRadius: 40,
+            spiderfyOnMaxZoom: true,
+            showCoverageOnHover: false,
+            zoomToBoundsOnClick: true,
+            iconCreateFunction: function(cluster) {
+                const count = cluster.getChildCount();
+                let size = 'small';
+                let iconSize = [36, 36];
+                
+                if (count > 50) size = 'large';
+                else if (count > 10) size = 'medium';
+                
+                if (size === 'medium') iconSize = [44, 44];
+                if (size === 'large') iconSize = [52, 52];
+                
+                return L.divIcon({
+                    html: `<div class="cluster-${size}">${count}</div>`,
+                    className: `marker-cluster marker-cluster-${size}`,
+                    iconSize: L.point(iconSize[0], iconSize[1])
+                });
+            }
+        });
+        map.addLayer(markerCluster);
+
+        console.log("✅ Bản đồ đã được khởi tạo thành công");
+        
+        setTimeout(() => {
+            loadLocations();
+        }, 300);
+
+    } catch (error) {
+        console.error("❌ Lỗi khởi tạo bản đồ:", error);
+        showNotification(`❌ Không thể khởi tạo bản đồ: ${error.message}`, "danger");
+    }
+}
+
+// =========================================================
+// Tải dữ liệu vị trí
+// =========================================================
+async function loadLocations(filter = null) {
+    try {
+        showLoading("Đang tải dữ liệu vị trí...");
+        
+        let url = "/api/locations";
+        if (filter) {
+            url += `?start_date=${filter.start}&end_date=${filter.end}`;
+        }
+        
+        const response = await fetch(url);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        console.log("📍 Dữ liệu nhận được:", data);
+
+        locationHistory = data.locations || [];
+        
+        updateStatistics(locationHistory);
+        displayLocations(locationHistory);
+        hideLoading();
+
+    } catch (error) {
+        console.error("❌ Lỗi tải dữ liệu:", error);
+        showNotification(`❌ Lỗi tải dữ liệu: ${error.message}`, 'danger');
+        showErrorState(error);
+        hideLoading();
+    }
+}
+
+// =========================================================
+// Date Filter Functions
+// =========================================================
+function applyDateFilter() {
+    const startDate = document.getElementById('start-date').value;
+    const endDate = document.getElementById('end-date').value;
+    
+    if (!startDate && !endDate) {
+        showNotification('⚠️ Vui lòng chọn ít nhất một ngày để lọc', 'warning');
+        return;
+    }
+    
+    currentFilter = {
+        start: startDate || null,
+        end: endDate || null
+    };
+    
+    updateFilterTag();
+    loadLocations(currentFilter);
+}
+
+function clearDateFilter() {
+    document.getElementById('start-date').value = '';
+    document.getElementById('end-date').value = '';
+    currentFilter = null;
+    
+    updateFilterTag();
+    loadLocations();
+    
+    showNotification('🔄 Đã xóa bộ lọc ngày', 'info');
+}
+
+function setDateRange(rangeType) {
+    const today = new Date();
+    let startDate = new Date();
+    let endDate = new Date();
+    
+    switch(rangeType) {
+        case 'today':
+            break;
+        case 'yesterday':
+            startDate.setDate(today.getDate() - 1);
+            endDate.setDate(today.getDate() - 1);
+            break;
+        case 'week':
+            startDate.setDate(today.getDate() - today.getDay() + 1);
+            endDate.setDate(today.getDate() + (7 - today.getDay()));
+            break;
+        case 'month':
+            startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+            endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+            break;
+        case 'lastmonth':
+            startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+            endDate = new Date(today.getFullYear(), today.getMonth(), 0);
+            break;
+    }
+    
+    const formatDate = (date) => {
+        return date.toISOString().split('T')[0];
+    };
+    
+    document.getElementById('start-date').value = formatDate(startDate);
+    document.getElementById('end-date').value = formatDate(endDate);
+    
+    document.querySelectorAll('.quick-date-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    event.target.classList.add('active');
+}
+
+function updateFilterTag() {
+    const filterTag = document.getElementById('active-filter-tag');
+    const filterText = document.getElementById('filter-text');
+    
+    if (currentFilter) {
+        let text = '';
+        if (currentFilter.start && currentFilter.end) {
+            const startDate = new Date(currentFilter.start).toLocaleDateString('vi-VN');
+            const endDate = new Date(currentFilter.end).toLocaleDateString('vi-VN');
+            text = `${startDate} - ${endDate}`;
+        } else if (currentFilter.start) {
+            const date = new Date(currentFilter.start).toLocaleDateString('vi-VN');
+            text = `Từ ${date}`;
+        } else if (currentFilter.end) {
+            const date = new Date(currentFilter.end).toLocaleDateString('vi-VN');
+            text = `Đến ${date}`;
+        }
+        
+        filterText.textContent = text;
+        filterTag.style.display = 'block';
+    } else {
+        filterTag.style.display = 'none';
+    }
+}
+
+// =========================================================
+// Hiển thị dữ liệu
+// =========================================================
+function displayLocations(locations) {
+    const tableBody = document.getElementById("location-table-body");
+    
+    if (!tableBody) return;
+    
+    locations.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    updateTableView(tableBody, locations);
+    updateMapMarkers(locations);
+    updateDisplayInfo(locations);
+}
+
+// =========================================================
+// Cập nhật bảng với đầy đủ thông tin
+// =========================================================
+function updateTableView(tableBody, locations) {
+    tableBody.innerHTML = '';
+    
+    if (locations.length === 0) {
+        tableBody.innerHTML = `
+            <tr>
+                <td colspan="4" class="text-center py-4">
+                    <div class="empty-state">
+                        <i class="fas fa-map-marker-alt"></i>
+                        <h5 class="mt-2">Không có dữ liệu</h5>
+                        <p class="small">${currentFilter ? 'Không có dữ liệu trong khoảng thời gian đã chọn' : 'Thay đổi bộ lọc hoặc thử lại'}</p>
+                    </div>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    locations.forEach((loc, index) => {
+        const isCurrent = index === 0;
+        const row = createLocationRow(loc, isCurrent);
+        tableBody.appendChild(row);
+    });
+}
+
+// =========================================================
+// Tạo location row với đầy đủ thông tin
+// =========================================================
+function createLocationRow(location, isCurrent = false) {
+    const tr = document.createElement('tr');
+    tr.className = isCurrent ? 'new-data' : '';
+    tr.style.cursor = 'pointer';
+    tr.onclick = () => focusOnLocation(location.lat, location.lng);
+    
+    const time = new Date(location.timestamp);
+    const timeStr = time.toLocaleTimeString('vi-VN', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+    });
+    const dateStr = time.toLocaleDateString('vi-VN', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+    });
+    
+    tr.innerHTML = `
+        <td class="ps-3">
+            <div class="d-flex align-items-center">
+                <div class="position-relative me-2">
+                    <div class="bg-${isCurrent ? 'success' : 'primary'} bg-opacity-10 p-2 rounded-2">
+                        <i class="fas fa-${isCurrent ? 'satellite' : 'map-pin'} text-${isCurrent ? 'success' : 'primary'}"></i>
+                    </div>
+                </div>
+                <div>
+                    <div class="fw-medium">${location.device || 'Thiết bị'}</div>
+                    <div class="small text-muted">${location.address || 'Địa chỉ không xác định'}</div>
+                </div>
+            </div>
+        </td>
+        <td>
+            <div class="small">
+                <div class="fw-medium">${timeStr}</div>
+                <div class="text-muted">${dateStr}</div>
+            </div>
+        </td>
+        <td>
+            <div class="small">
+                <div class="fw-medium">${parseFloat(location.lat).toFixed(6)}</div>
+                <div class="text-muted">${parseFloat(location.lng).toFixed(6)}</div>
+            </div>
+        </td>
+        <td class="text-center">
+            <button class="btn btn-sm btn-outline-gradient rounded-circle" 
+                    onclick="focusOnLocation(${location.lat}, ${location.lng}, event)"
+                    title="Xem trên bản đồ">
+                <i class="fas fa-location-arrow"></i>
+            </button>
+            <button class="btn btn-sm btn-outline-secondary rounded-circle ms-1" 
+                    onclick="showLocationDetails(${JSON.stringify(location).replace(/"/g, '&quot;')}, event)"
+                    title="Chi tiết">
+                <i class="fas fa-info"></i>
+            </button>
+        </td>
+    `;
+    
+    return tr;
+}
+
+// =========================================================
+// Hiển thị chi tiết vị trí
+// =========================================================
+function showLocationDetails(location, event) {
+    if (event) event.stopPropagation();
+    
+    currentDetailLocation = location;
+    const time = new Date(location.timestamp);
+    
+    const detailHtml = `
+        <div class="row mb-3">
+            <div class="col-12">
+                <h6 class="text-primary mb-2">
+                    <i class="fas fa-microchip me-2"></i>
+                    Thiết bị
+                </h6>
+                <p class="mb-0">${location.device || 'Thiết bị'}</p>
+                <small class="text-muted">Địa chỉ: ${location.address || 'Không xác định'}</small>
+            </div>
+        </div>
+        
+        <div class="row mb-3">
+            <div class="col-6">
+                <h6 class="text-primary mb-2">
+                    <i class="fas fa-globe-asia me-2"></i>
+                    Latitude
+                </h6>
+                <code class="fs-5">${parseFloat(location.lat).toFixed(6)}</code>
+            </div>
+            <div class="col-6">
+                <h6 class="text-primary mb-2">
+                    <i class="fas fa-globe-asia me-2"></i>
+                    Longitude
+                </h6>
+                <code class="fs-5">${parseFloat(location.lng).toFixed(6)}</code>
+            </div>
+        </div>
+        
+        <div class="row mb-3">
+            <div class="col-12">
+                <h6 class="text-primary mb-2">
+                    <i class="fas fa-clock me-2"></i>
+                    Thời gian
+                </h6>
+                <div>
+                    <div>${time.toLocaleDateString('vi-VN', { 
+                        weekday: 'long',
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric' 
+                    })}</div>
+                    <div class="text-muted">${time.toLocaleTimeString('vi-VN')}</div>
+                </div>
+            </div>
+        </div>
+        
+        ${location.accuracy ? `
+        <div class="row">
+            <div class="col-12">
+                <h6 class="text-primary mb-2">
+                    <i class="fas fa-bullseye me-2"></i>
+                    Độ chính xác
+                </h6>
+                <div class="progress" style="height: 10px;">
+                    <div class="progress-bar bg-success" style="width: ${100 - Math.min(location.accuracy, 100)}%"></div>
+                </div>
+                <small class="text-muted">Độ chính xác: ${location.accuracy} mét</small>
+            </div>
+        </div>
+        ` : ''}
+    `;
+    
+    document.getElementById('location-detail-content').innerHTML = detailHtml;
+    
+    const focusBtn = document.getElementById('focus-on-map-btn');
+    focusBtn.onclick = () => {
+        focusOnLocation(location.lat, location.lng);
+        const modal = bootstrap.Modal.getInstance(document.getElementById('locationDetailModal'));
+        modal.hide();
+    };
+    
+    const modal = new bootstrap.Modal(document.getElementById('locationDetailModal'));
+    modal.show();
+}
+
+// =========================================================
+// Cập nhật map markers
+// =========================================================
+function updateMapMarkers(locations) {
+    clearMarkers();
+    
+    locations.forEach((loc, index) => {
+        if (index === 0) {
+            updateCurrentMarker(loc);
+        } else {
+            addHistoryMarker(loc);
+        }
+    });
+    
+    if (locations.length > 0) {
+        setTimeout(() => fitMapToMarkers(), 300);
+    }
+    
+    if (isHeatmapVisible) {
+        updateHeatmap(locations);
+    }
+}
+
+function updateCurrentMarker(location) {
+    if (!map || !location) return;
+    
+    if (currentMarker) {
+        map.removeLayer(currentMarker);
+    }
+    
+    const icon = L.divIcon({
+        html: `
+            <div class="position-relative">
+                <div class="p-2 bg-success bg-opacity-25 rounded-circle">
+                    <i class="fas fa-satellite text-white"></i>
+                </div>
+                <div class="position-absolute top-0 start-0 w-100 h-100 rounded-circle border border-2 border-success border-opacity-50" 
+                     style="animation: pulse 2s infinite"></div>
+            </div>
+        `,
+        className: 'custom-marker',
+        iconSize: [40, 40],
+        iconAnchor: [20, 40]
+    });
+    
+    currentMarker = L.marker([location.lat, location.lng], {
+        icon: icon,
+        title: location.device || 'Vị trí hiện tại',
+        zIndexOffset: 1000
+    }).addTo(map);
+    
+    currentMarker.bindPopup(createPopupContent(location, true));
+    currentMarker.openPopup();
+    
+    updateCurrentInfo(location);
+}
+
+function addHistoryMarker(location) {
+    const icon = L.divIcon({
+        html: `
+            <div class="p-2 bg-primary bg-opacity-10 rounded-circle">
+                <i class="fas fa-map-pin text-primary"></i>
+            </div>
+        `,
+        className: 'history-marker',
+        iconSize: [28, 28],
+        iconAnchor: [14, 28]
+    });
+    
+    const marker = L.marker([location.lat, location.lng], { icon: icon });
+    marker.bindPopup(createPopupContent(location, false));
+    markerCluster.addLayer(marker);
+    markers.push(marker);
+}
+
+function createPopupContent(location, isCurrent) {
+    const time = new Date(location.timestamp);
+    return `
+        <div class="p-2" style="min-width: 200px;">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+                <div class="d-flex align-items-center">
+                    <i class="fas ${isCurrent ? 'fa-satellite text-success' : 'fa-history text-primary'} me-2"></i>
+                    <strong>${location.device || 'Thiết bị'}</strong>
+                </div>
+                ${isCurrent ? '<span class="badge bg-success small">LIVE</span>' : ''}
+            </div>
+            <div class="mb-2">
+                <small class="text-muted d-block mb-1">Tọa độ:</small>
+                <div class="small">
+                    <div>Lat: ${parseFloat(location.lat).toFixed(6)}</div>
+                    <div>Lng: ${parseFloat(location.lng).toFixed(6)}</div>
+                </div>
+            </div>
+            <div class="mb-2">
+                <small class="text-muted d-block mb-1">Thời gian:</small>
+                <div class="small">${time.toLocaleString('vi-VN')}</div>
+            </div>
+            <button class="btn btn-sm btn-primary w-100 mt-1" onclick="focusOnLocation(${location.lat}, ${location.lng})">
+                <i class="fas fa-bullseye me-1"></i> Đến vị trí này
+            </button>
+        </div>
+    `;
+}
+
+// =========================================================
+// Cập nhật thông tin
+// =========================================================
+function updateCurrentInfo(location) {
+    if (!location) return;
+    
+    const time = new Date(location.timestamp);
+    const timeStr = `${time.getHours().toString().padStart(2, '0')}:${time.getMinutes().toString().padStart(2, '0')}`;
+    const dateStr = `${time.getDate().toString().padStart(2, '0')}/${(time.getMonth() + 1).toString().padStart(2, '0')}`;
+    
+    document.getElementById('current-lat').textContent = parseFloat(location.lat).toFixed(6);
+    document.getElementById('current-lng').textContent = parseFloat(location.lng).toFixed(6);
+    document.getElementById('current-device').textContent = location.device || 'Thiết bị';
+    document.getElementById('current-time').textContent = `${timeStr} ${dateStr}`;
+}
+
+function updateStatistics(locations = []) {
+    document.getElementById('total-locations').textContent = locations.length;
+    document.getElementById('displayed-count').textContent = locations.length;
+    document.getElementById('marker-count').innerHTML = `
+        <i class="fas fa-map-pin me-1"></i>
+        <span>${locations.length}</span> điểm
+    `;
+    
+    if (locations.length > 0) {
+        const lastUpdate = new Date(locations[0].timestamp);
+        const now = new Date();
+        const diffMins = Math.floor((now - lastUpdate) / 60000);
+        
+        document.getElementById('last-update').textContent = 
+            lastUpdate.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+        
+        let durationText = 'Vừa xong';
+        if (diffMins > 0) {
+            if (diffMins < 60) {
+                durationText = `${diffMins} phút trước`;
+            } else {
+                const diffHours = Math.floor(diffMins / 60);
+                durationText = `${diffHours} giờ trước`;
+            }
+        }
+        document.getElementById('update-duration').textContent = durationText;
+        
+        const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        const recentLocations = locations.filter(loc => new Date(loc.timestamp) > dayAgo);
+        document.getElementById('location-trend-info').textContent = 
+            `${recentLocations.length} trong 24h qua`;
+    }
+}
+
+function updateDisplayInfo(locations) {
+    document.getElementById('displayed-count').textContent = locations.length;
+}
+
+// =========================================================
+// Heatmap functions
+// =========================================================
+function toggleHeatmap() {
+    if (!heatmapLayer) {
+        heatmapLayer = L.heatLayer([], {
+            radius: 20,
+            blur: 12,
+            maxZoom: 17,
+            gradient: {
+                0.4: '#667eea',
+                0.6: '#764ba2',
+                0.8: '#f59e0b',
+                1.0: '#fbbf24'
+            }
+        });
+    }
+    
+    if (isHeatmapVisible) {
+        map.removeLayer(heatmapLayer);
+        document.getElementById('heatmapLegend').style.display = 'none';
+        showNotification('🌡️ Đã tắt heatmap', 'info');
+    } else {
+        updateHeatmap(locationHistory);
+        map.addLayer(heatmapLayer);
+        document.getElementById('heatmapLegend').style.display = 'inline-flex';
+        showNotification('🌡️ Đã bật heatmap', 'success');
+    }
+    
+    isHeatmapVisible = !isHeatmapVisible;
+}
+
+function updateHeatmap(locations) {
+    if (!heatmapLayer) return;
+    const points = locations.map(loc => [loc.lat, loc.lng, 1]);
+    heatmapLayer.setLatLngs(points);
+}
+
+// =========================================================
+// Route functions
+// =========================================================
+function showRouteHistory() {
+    if (!routeLayer) {
+        routeLayer = L.layerGroup().addTo(map);
+    }
+    
+    routeLayer.clearLayers();
+    
+    if (locationHistory.length < 2) {
+        showNotification('🛣️ Không đủ dữ liệu để vẽ tuyến đường', 'warning');
+        return;
+    }
+    
+    const points = locationHistory.map(loc => [loc.lat, loc.lng]);
+    const polyline = L.polyline(points, {
+        color: '#667eea',
+        weight: 2,
+        opacity: 0.6,
+        dashArray: '5, 5'
+    }).addTo(routeLayer);
+    
+    map.fitBounds(polyline.getBounds());
+    showNotification('🛣️ Đã hiển thị tuyến đường', 'success');
+}
+
+// =========================================================
+// Export functions
+// =========================================================
+function exportLocationData() {
+    if (locationHistory.length === 0) {
+        showNotification('📊 Không có dữ liệu để xuất', 'warning');
+        return;
+    }
+    
+    let csv = 'Thời gian,Thiết bị,Latitude,Longitude,Địa chỉ\n';
+    locationHistory.forEach(loc => {
+        const time = new Date(loc.timestamp).toLocaleString('vi-VN');
+        csv += `"${time}","${loc.device || 'Thiết bị'}",${loc.lat},${loc.lng},"${loc.address || ''}"\n`;
+    });
+    
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `location_data_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    
+    showNotification('📥 Đã xuất dữ liệu CSV', 'success');
+}
+
+// =========================================================
+// Map control functions
+// =========================================================
+function centerMap() {
+    if (currentMarker) {
+        map.setView(currentMarker.getLatLng(), 16, {
+            animate: true,
+            duration: 0.5
+        });
+        currentMarker.openPopup();
+        showNotification('📍 Đã di chuyển đến vị trí hiện tại', 'info');
+    } else {
+        map.setView([10.852488, 106.770025], 13, { animate: true });
+    }
+}
+
+function toggleSatellite() {
+    if (!satelliteLayer || !streetLayer) return;
+    
+    if (isSatelliteView) {
+        map.removeLayer(satelliteLayer);
+        map.addLayer(streetLayer);
+        isSatelliteView = false;
+        showNotification('🌍 Đã chuyển sang chế độ bản đồ', 'info');
+    } else {
+        map.removeLayer(streetLayer);
+        map.addLayer(satelliteLayer);
+        isSatelliteView = true;
+        showNotification('🛰️ Đã chuyển sang chế độ vệ tinh', 'info');
+    }
+}
+
+function zoomIn() {
+    map.zoomIn();
+}
+
+function zoomOut() {
+    map.zoomOut();
+}
+
+function locateUser() {
+    if ("geolocation" in navigator) {
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                const { latitude, longitude } = position.coords;
+                map.setView([latitude, longitude], 15, {
+                    animate: true,
+                    duration: 0.5
+                });
+                showNotification('📍 Đã tìm thấy vị trí của bạn', 'success');
+            },
+            (error) => {
+                showNotification('❌ Không thể lấy vị trí của bạn', 'danger');
+            }
+        );
+    } else {
+        showNotification('❌ Trình duyệt không hỗ trợ định vị', 'warning');
+    }
+}
+
+// =========================================================
+// Utility functions
+// =========================================================
+function clearMarkers() {
+    if (markerCluster) {
+        markerCluster.clearLayers();
+    }
+    markers = [];
+    
+    if (currentMarker) {
+        map.removeLayer(currentMarker);
+        currentMarker = null;
+    }
+    
+    if (routeLayer) {
+        routeLayer.clearLayers();
+    }
+}
+
+function fitMapToMarkers() {
+    const allMarkers = [...markers];
+    if (currentMarker) allMarkers.push(currentMarker);
+    
+    if (allMarkers.length > 0) {
+        const bounds = L.latLngBounds(allMarkers.map(m => m.getLatLng()));
+        map.fitBounds(bounds, { 
+            padding: [30, 30],
+            maxZoom: 16,
+            animate: true,
+            duration: 0.5
+        });
+    }
+}
+
+function focusOnLocation(lat, lng, event = null) {
+    if (event) event.stopPropagation();
+    map.setView([lat, lng], 16, {
+        animate: true,
+        duration: 0.5
+    });
+    if (currentMarker && currentMarker.getLatLng().lat === lat && currentMarker.getLatLng().lng === lng) {
+        currentMarker.openPopup();
+    }
+}
+
+// =========================================================
+// Loading functions
+// =========================================================
+function showLoading(message = 'Đang xử lý...') {
+    const overlay = document.getElementById('loadingOverlay');
+    const messageEl = document.getElementById('loadingMessage');
+    if (overlay && messageEl) {
+        messageEl.textContent = message;
+        overlay.style.display = 'flex';
+    }
+}
+
+function hideLoading() {
+    const overlay = document.getElementById('loadingOverlay');
+    if (overlay) overlay.style.display = 'none';
+}
+
+// =========================================================
+// Notification system
+// =========================================================
+function showNotification(message, type = 'info') {
+    const toastId = 'toast-' + Date.now();
+    const icons = {
+        'success': 'check-circle',
+        'danger': 'exclamation-triangle',
+        'warning': 'exclamation-circle',
+        'info': 'info-circle'
+    };
+    
+    const toastHtml = `
+        <div id="${toastId}" class="toast toast-custom fade show" role="alert">
+            <div class="toast-header toast-header-${type}">
+                <i class="fas fa-${icons[type] || 'info-circle'} me-2"></i>
+                <strong class="me-auto">Thông báo</strong>
+                <small class="opacity-75">vừa xong</small>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body">
+                ${message}
+            </div>
+        </div>
+    `;
+    
+    const container = document.getElementById('toastContainer');
+    if (container) {
+        container.insertAdjacentHTML('beforeend', toastHtml);
+        const toastEl = document.getElementById(toastId);
+        if (toastEl) {
+            const toast = new bootstrap.Toast(toastEl, { delay: 3000 });
+            toast.show();
+            toastEl.addEventListener('hidden.bs.toast', function () { this.remove(); });
+        }
+    }
+}
+
+// =========================================================
+// Event handlers
+// =========================================================
+async function refreshLocationOnMap() {
+    const btn = document.getElementById('mapRefreshBtn');
+    const original = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>';
+    btn.disabled = true;
+    
+    try {
+        const response = await fetch('/api/device/refresh_location/1', { method: 'POST' });
+        const data = await response.json();
+        
+        if (data.success) {
+            showNotification('🔄 Đang cập nhật vị trí từ thiết bị...', 'info');
+            setTimeout(() => loadLocations(currentFilter), 2000);
+        } else {
+            showNotification('❌ ' + (data.error || 'Không thể cập nhật'), 'danger');
+        }
+    } catch (error) {
+        showNotification('❌ Lỗi kết nối: ' + error.message, 'danger');
+    } finally {
+        setTimeout(() => {
+            btn.innerHTML = original;
+            btn.disabled = false;
+        }, 2000);
+    }
+}
+
+async function refreshLocationHistory() {
+    const btn = document.getElementById('historyRefreshBtn');
+    const original = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    btn.disabled = true;
+    
+    await loadLocations(currentFilter);
+    
+    setTimeout(() => {
+        btn.innerHTML = original;
+        btn.disabled = false;
+    }, 1000);
+}
+
+async function clearHistory() {
+    if (!confirm('Bạn có chắc muốn xóa toàn bộ lịch sử vị trí?')) return;
+    
+    try {
+        const response = await fetch('/api/locations/clear', { method: 'POST' });
+        const data = await response.json();
+        
+        if (data.success) {
+            showNotification('🗑️ Đã xóa toàn bộ lịch sử vị trí', 'success');
+            locationHistory = [];
+            clearMarkers();
+            updateStatistics([]);
+            updateTableView(document.getElementById('location-table-body'), []);
+            currentFilter = null;
+            updateFilterTag();
+        } else {
+            showNotification('❌ ' + (data.error || 'Không thể xóa'), 'danger');
+        }
+    } catch (error) {
+        showNotification('❌ Lỗi kết nối: ' + error.message, 'danger');
+    }
+}
+
+function showErrorState(error) {
+    const tableBody = document.getElementById("location-table-body");
+    if (!tableBody) return;
+    
+    tableBody.innerHTML = `
+        <tr>
+            <td colspan="4" class="text-center py-4">
+                <div class="empty-state">
+                    <i class="fas fa-exclamation-triangle text-danger"></i>
+                    <h5 class="mt-2 text-danger">Lỗi tải dữ liệu</h5>
+                    <p class="small">${error.message || 'Không thể kết nối đến server'}</p>
+                    <button class="btn btn-sm btn-outline-gradient mt-2" onclick="loadLocations(currentFilter)">
+                        <i class="fas fa-redo me-1"></i>Thử lại
+                    </button>
+                </div>
+            </td>
+        </tr>
+    `;
+}
+
+// =========================================================
+// Socket.IO real-time updates
+// =========================================================
+const socket = io();
+
+socket.on("connect", () => {
+    console.log("✅ Socket.IO connected");
+    showNotification('🔗 Đã kết nối real-time', 'success');
+});
+
+socket.on("location_event", (data) => {
+    console.log("📍 Nhận sự kiện vị trí:", data);
+    
+    if (data && data.lat && data.lng) {
+        const newLocation = {
+            ...data,
+            timestamp: new Date().toISOString()
+        };
+        
+        locationHistory.unshift(newLocation);
+        
+        const locationDate = new Date(newLocation.timestamp).toISOString().split('T')[0];
+        const shouldDisplay = !currentFilter || 
+            (!currentFilter.start || locationDate >= currentFilter.start) &&
+            (!currentFilter.end || locationDate <= currentFilter.end);
+        
+        if (shouldDisplay) {
+            displayLocations(locationHistory.slice(0, 50));
+        }
+        
+        showNotification(`📍 Đã cập nhật vị trí từ ${data.device || 'thiết bị'}`, 'success');
+    }
+});
+
+socket.on("disconnect", () => {
+    console.log("❌ Socket.IO disconnected");
+    showNotification('🔌 Đã mất kết nối real-time', 'danger');
+});
+
+// =========================================================
+// Khởi tạo khi trang tải xong
+// =========================================================
+document.addEventListener('DOMContentLoaded', function() {
+    console.log("🚀 Trang vị trí đã sẵn sàng");
+    
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('start-date').value = today;
+    document.getElementById('end-date').value = today;
+    
+    document.getElementById('start-date').max = today;
+    document.getElementById('end-date').max = today;
+    
+    initMap();
+    
+    autoRefreshInterval = setInterval(() => {
+        if (!document.hidden) {
+            loadLocations(currentFilter);
+        }
+    }, 30000);
+    
+    document.addEventListener('visibilitychange', function() {
+        if (!document.hidden) {
+            loadLocations(currentFilter);
+        }
+    });
+    
+    window.addEventListener('beforeunload', function() {
+        clearInterval(autoRefreshInterval);
+        socket.disconnect();
+    });
+});
+
+// =========================================================
+// Keyboard shortcuts
+// =========================================================
+document.addEventListener('keydown', function(e) {
+    if (e.ctrlKey && e.key === 'r') {
+        e.preventDefault();
+        loadLocations(currentFilter);
+    }
+    if (e.key === ' ' && !e.target.matches('input, textarea')) {
+        e.preventDefault();
+        centerMap();
+    }
+    if (e.key === 'Escape') {
+        clearDateFilter();
+    }
+});
+</script>
+{% endblock %}

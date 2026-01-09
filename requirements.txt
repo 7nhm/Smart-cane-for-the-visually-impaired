@@ -1,0 +1,35 @@
+# Core dependencies
+Flask==2.3.3
+Flask-SocketIO==5.3.4
+flask-cors==4.0.1
+Werkzeug==2.3.7
+python-socketio==5.9.0
+eventlet==0.33.3
+gunicorn==21.2.0
+
+# Computer Vision & AI
+opencv-python==4.8.1.78
+numpy==1.24.3
+Pillow==10.0.0
+
+# Machine Learning
+tensorflow==2.13.0  # Hoặc 2.10.0 nếu muốn ổn định hơn
+keras==2.13.1
+
+# Face Detection
+mtcnn==0.1.1
+retina-face==0.0.14
+
+# Utilities
+requests==2.31.0
+pandas==1.5.3
+gdown==5.1.0
+tqdm==4.66.1
+fire==0.5.0
+
+# Optional (nếu cần)    
+# lightphe==0.0.15  # Comment nếu không cần
+psutil==5.9.5
+python-engineio==4.5.1
+python-socketio==5.9.0
+eventlet==0.33.3

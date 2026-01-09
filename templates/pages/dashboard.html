@@ -1,0 +1,1549 @@
+@app.route("/manage", methods=["GET", "POST"])
+def manage():
+    # Xử lý hiển thị và thêm người mới{% extends "base.html" %}
+{% block title %} Dashboard {% endblock %}
+
+{% block content %}
+
+<style>
+    :root {
+        --primary: #2563eb;
+        --primary-light: #dbeafe;
+        --primary-dark: #1d4ed8;
+        --secondary: #7c3aed;
+        --success: #10b981;
+        --danger: #ef4444;
+        --warning: #f59e0b;
+        --info: #3b82f6;
+        --dark: #1e293b;
+        --light: #f8fafc;
+        --gray-200: #e2e8f0;
+        --gray-300: #cbd5e1;
+        --gray-600: #475569;
+        --radius: 12px;
+        --radius-lg: 16px;
+        --radius-xl: 20px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.12);
+        --shadow: 0 4px 6px rgba(0,0,0,0.1);
+        --shadow-lg: 0 10px 25px rgba(0,0,0,0.1);
+    }
+
+    body {
+        background: #f1f5f9;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        margin: 0;
+        padding: 0;
+        overflow-x: hidden;
+    }
+
+    .dashboard {
+        padding: 16px;
+        max-width: 1400px;
+        margin: 0 auto;
+        min-height: 100vh;
+        box-sizing: border-box;
+    }
+
+    /* Header */
+    .dashboard-header {
+        margin-bottom: 24px;
+    }
+
+    .welcome-section {
+        background: white;
+        border-radius: var(--radius-xl);
+        padding: 24px;
+        box-shadow: var(--shadow);
+        margin-bottom: 16px;
+        position: relative;
+        z-index: 1;
+    }
+
+    .welcome-section h1 {
+        font-size: 24px;
+        font-weight: 700;
+        color: var(--dark);
+        margin: 0 0 8px 0;
+    }
+
+    .welcome-section p {
+        color: var(--gray-600);
+        margin: 0 0 16px 0;
+        font-size: 15px;
+        line-height: 1.5;
+    }
+
+    .time-display {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 18px;
+        background: var(--primary);
+        color: white;
+        border-radius: var(--radius);
+        font-weight: 600;
+        font-size: 15px;
+    }
+
+    /* Stream Section - STABLE VERSION */
+    .stream-section {
+        background: white;
+        border-radius: var(--radius-xl);
+        box-shadow: var(--shadow);
+        overflow: hidden;
+        margin-bottom: 24px;
+        position: relative;
+        max-width: 1000px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .stream-header {
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--gray-200);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 12px;
+        background: white;
+    }
+
+    .stream-header h2 {
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--dark);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin: 0;
+    }
+
+    .status-indicator {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 16px;
+        background: var(--success);
+        color: white;
+        border-radius: 20px;
+        font-size: 14px;
+        font-weight: 500;
+        flex-shrink: 0;
+        transition: all 0.3s ease;
+    }
+
+    .status-indicator.offline {
+        background: var(--danger);
+    }
+
+    .status-indicator.connecting {
+        background: var(--warning);
+        animation: pulse 1.5s infinite;
+    }
+
+    .stream-container {
+        padding: 16px;
+        background: #0f172a;
+        position: relative;
+        min-height: 400px;
+    }
+
+    .stream-wrapper {
+        position: relative;
+        width: 100%;
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        aspect-ratio: 16/9;
+        max-height: 70vh;
+        background: #000;
+    }
+
+    #camera-stream {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+        transition: opacity 0.3s ease;
+    }
+
+    .stream-placeholder {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(45deg, #1e293b, #334155);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: 20px;
+        color: white;
+        font-size: 18px;
+        z-index: 5;
+    }
+
+    .stream-placeholder.hidden {
+        display: none;
+    }
+
+    .stream-controls {
+        position: absolute;
+        top: 16px;
+        right: 16px;
+        display: flex;
+        gap: 10px;
+        z-index: 10;
+    }
+
+    .control-btn {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.9);
+        border: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--primary);
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-size: 18px;
+        box-shadow: var(--shadow);
+    }
+
+    .control-btn:hover {
+        background: white;
+        transform: scale(1.05);
+        box-shadow: var(--shadow-lg);
+    }
+
+    .control-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none !important;
+    }
+
+    .stream-overlay {
+        position: absolute;
+        bottom: 16px;
+        left: 16px;
+        right: 16px;
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: var(--radius);
+        padding: 12px 16px;
+        backdrop-filter: blur(10px);
+        z-index: 10;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    .recognition-info {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-weight: 500;
+        color: var(--dark);
+        font-size: 14px;
+    }
+
+    .spinner {
+        width: 16px;
+        height: 16px;
+        border: 2px solid var(--gray-300);
+        border-top-color: var(--primary);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        flex-shrink: 0;
+    }
+
+    .ai-badge {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        background: var(--primary-light);
+        color: var(--primary);
+        border-radius: 16px;
+        font-size: 13px;
+        font-weight: 500;
+        flex-shrink: 0;
+    }
+
+    /* Cards Grid */
+    .cards-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+        margin-bottom: 20px;
+        align-items: stretch;
+    }
+
+    @media (min-width: 1024px) {
+        .cards-grid {
+            grid-template-columns: repeat(3, 1fr);
+        }
+    }
+
+    /* Card Design */
+    .card {
+        background: white;
+        border-radius: var(--radius-xl);
+        padding: 24px;
+        box-shadow: var(--shadow);
+        border: 1px solid var(--gray-200);
+        transition: transform 0.2s, box-shadow 0.2s;
+        display: flex;
+        flex-direction: column;
+        height: auto;
+        min-height: 0;
+        overflow: hidden;
+    }
+
+    .card:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--shadow-lg);
+    }
+
+    .card-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 20px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid var(--gray-200);
+        flex-shrink: 0;
+    }
+
+    .card-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 18px;
+        flex-shrink: 0;
+    }
+
+    .card-header h3 {
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--dark);
+        margin: 0;
+        line-height: 1.3;
+    }
+
+    .card-body {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+    }
+
+    /* Profile Card */
+    .profile-content {
+        text-align: center;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .profile-avatar {
+        width: 80px;
+        height: 80px;
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 28px;
+        font-weight: 600;
+        margin: 0 auto 16px;
+        border: 4px solid var(--primary-light);
+        flex-shrink: 0;
+    }
+
+    .profile-name {
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--dark);
+        margin-bottom: 8px;
+        word-break: break-word;
+        line-height: 1.4;
+    }
+
+    .profile-role {
+        color: var(--gray-600);
+        font-size: 14px;
+        margin-bottom: 24px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 16px;
+        background: var(--primary-light);
+        border-radius: 20px;
+        align-self: center;
+        flex-shrink: 0;
+    }
+
+    .profile-info {
+        margin-bottom: 24px;
+        flex: 1;
+    }
+
+    .info-item {
+        display: flex;
+        align-items: flex-start;
+        padding: 12px 0;
+        border-bottom: 1px solid var(--gray-200);
+        gap: 12px;
+    }
+
+    .info-item:last-child {
+        border-bottom: none;
+    }
+
+    .info-item i {
+        width: 20px;
+        color: var(--primary);
+        margin-top: 2px;
+        flex-shrink: 0;
+    }
+
+    .info-label {
+        font-size: 14px;
+        color: var(--gray-600);
+        flex: 1;
+        line-height: 1.5;
+    }
+
+    .info-value {
+        font-weight: 500;
+        color: var(--dark);
+        text-align: right;
+        max-width: 180px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: normal;
+        word-break: break-word;
+        line-height: 1.5;
+        flex-shrink: 0;
+    }
+
+    .btn {
+        width: 100%;
+        padding: 14px;
+        background: var(--primary);
+        color: white;
+        border: none;
+        border-radius: var(--radius);
+        font-weight: 500;
+        font-size: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        cursor: pointer;
+        transition: background 0.2s;
+        margin-top: auto;
+        flex-shrink: 0;
+    }
+
+    .btn:hover {
+        background: var(--primary-dark);
+    }
+
+    /* Device Card */
+    .device-header {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 20px;
+    }
+
+    .device-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #dc2626, #ef4444);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 22px;
+        flex-shrink: 0;
+    }
+
+    .device-info h4 {
+        font-size: 16px;
+        font-weight: 600;
+        margin: 0 0 4px 0;
+        color: var(--dark);
+        word-break: break-word;
+        line-height: 1.4;
+    }
+
+    .device-info p {
+        font-size: 14px;
+        color: var(--gray-600);
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        line-height: 1.5;
+    }
+
+    .device-status {
+        background: var(--success);
+        color: white;
+        padding: 10px 16px;
+        border-radius: var(--radius);
+        font-weight: 500;
+        margin-bottom: 20px;
+        text-align: center;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        transition: all 0.3s ease;
+    }
+
+    .device-status.offline {
+        background: var(--danger);
+    }
+
+    .device-status.connecting {
+        background: var(--warning);
+        animation: pulse 1.5s infinite;
+    }
+
+    .features-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+        margin-bottom: 20px;
+        flex: 1;
+    }
+
+    .feature {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px;
+        background: var(--light);
+        border-radius: var(--radius);
+        font-size: 14px;
+        font-weight: 500;
+        line-height: 1.4;
+    }
+
+    .feature i {
+        color: var(--primary);
+        flex-shrink: 0;
+    }
+
+    .device-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-top: auto;
+        flex-shrink: 0;
+    }
+
+    .btn-secondary {
+        background: white;
+        color: var(--primary);
+        border: 2px solid var(--primary);
+    }
+
+    .btn-secondary:hover {
+        background: var(--primary-light);
+    }
+
+    /* Location Card */
+    .location-content {
+        text-align: center;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .location-icon {
+        width: 70px;
+        height: 70px;
+        background: linear-gradient(135deg, var(--success), #34d399);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 28px;
+        margin: 0 auto 20px;
+        flex-shrink: 0;
+    }
+
+    .coordinates {
+        background: var(--light);
+        border-radius: var(--radius-lg);
+        padding: 20px;
+        margin-bottom: 20px;
+        flex: 1;
+    }
+
+    .coordinate-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 0;
+        border-bottom: 1px solid var(--gray-200);
+        gap: 12px;
+    }
+
+    .coordinate-row:last-child {
+        border-bottom: none;
+    }
+
+    .coordinate-label {
+        font-size: 14px;
+        color: var(--gray-600);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-shrink: 0;
+    }
+
+    .coordinate-value {
+        font-weight: 600;
+        color: var(--dark);
+        font-family: 'SF Mono', monospace;
+        font-size: 14px;
+        word-break: break-all;
+        text-align: right;
+    }
+
+    .location-actions {
+        display: grid;
+        gap: 12px;
+        margin-top: auto;
+        flex-shrink: 0;
+    }
+
+    .btn-outline {
+        background: white;
+        color: var(--primary);
+        border: 2px solid var(--primary);
+    }
+
+    .btn-outline:hover {
+        background: var(--primary);
+        color: white;
+    }
+
+    .update-time {
+        text-align: center;
+        color: var(--gray-600);
+        font-size: 14px;
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 1px solid var(--gray-200);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        flex-shrink: 0;
+    }
+
+    /* Empty States */
+    .empty-state {
+        text-align: center;
+        padding: 40px 20px;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .empty-icon {
+        font-size: 48px;
+        color: var(--gray-300);
+        margin-bottom: 16px;
+    }
+
+    .empty-text {
+        color: var(--gray-600);
+        margin-bottom: 20px;
+        font-size: 16px;
+        line-height: 1.5;
+    }
+
+    /* Animations */
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.7; }
+    }
+
+    /* NOTIFICATIONS - IMPROVED */
+    .notification {
+        position: fixed;
+        top: 90px;
+        right: 20px;
+        background: white;
+        color: var(--dark);
+        padding: 16px 24px;
+        border-radius: var(--radius);
+        box-shadow: var(--shadow-lg);
+        z-index: 99999;
+        animation: fadeIn 0.3s;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        max-width: 400px;
+        min-width: 300px;
+        border-left: 4px solid var(--primary);
+    }
+
+    .notification.success {
+        border-left-color: var(--success);
+    }
+
+    .notification.error {
+        border-left-color: var(--danger);
+    }
+
+    .notification.warning {
+        border-left-color: var(--warning);
+    }
+
+    .notification.info {
+        border-left-color: var(--info);
+    }
+
+    .notification .close-btn {
+        margin-left: auto;
+        background: none;
+        border: none;
+        color: var(--gray-600);
+        cursor: pointer;
+        padding: 0;
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        transition: background 0.2s;
+    }
+
+    .notification .close-btn:hover {
+        background: var(--gray-200);
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .dashboard {
+            padding: 12px;
+        }
+
+        .welcome-section {
+            padding: 20px;
+        }
+
+        .welcome-section h1 {
+            font-size: 22px;
+        }
+
+        .stream-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .stream-overlay {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 12px;
+            text-align: center;
+        }
+
+        .recognition-info, .ai-badge {
+            justify-content: center;
+            width: 100%;
+        }
+
+        .cards-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .features-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .device-actions {
+            grid-template-columns: 1fr;
+        }
+
+        .info-value {
+            max-width: 150px;
+            font-size: 14px;
+        }
+        
+        .notification {
+            left: 10px;
+            right: 10px;
+            max-width: none;
+            min-width: auto;
+            top: 70px;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .dashboard {
+            padding: 10px;
+        }
+
+        .card {
+            padding: 20px;
+            margin-bottom: 15px;
+        }
+
+        .profile-avatar {
+            width: 70px;
+            height: 70px;
+            font-size: 24px;
+        }
+
+        .device-header {
+            flex-direction: column;
+            text-align: center;
+            gap: 12px;
+        }
+
+        .coordinate-row {
+            flex-direction: column;
+            gap: 4px;
+            text-align: center;
+            align-items: flex-start;
+        }
+
+        .coordinate-value {
+            text-align: left;
+            width: 100%;
+        }
+
+        .stream-wrapper {
+            aspect-ratio: 4/3;
+            max-height: 50vh;
+        }
+        
+        .notification {
+            top: 60px;
+            padding: 12px 16px;
+            font-size: 14px;
+        }
+    }
+
+    /* Loading */
+    .loading {
+        opacity: 0.7;
+        pointer-events: none;
+        position: relative;
+    }
+
+    .loading::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 24px;
+        height: 24px;
+        border: 3px solid var(--gray-200);
+        border-top-color: var(--primary);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    /* Utility classes */
+    .text-truncate {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .mt-auto {
+        margin-top: auto;
+    }
+</style>
+
+<div class="dashboard">
+    <!-- Header -->
+    <div class="dashboard-header">
+        <div class="welcome-section">
+            <h1>Welcome, {{ user["name"].split()[-1] }}</h1>
+            <p>Monitor your security system in real-time</p>
+            <div class="time-display">
+                <i class="fas fa-clock"></i>
+                <span>{{ now.strftime('%H:%M') if now else '' }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stream Section -->
+    <div class="stream-section">
+        <div class="stream-header">
+            <h2>
+                <i class="fas fa-video"></i>
+                Live Camera
+            </h2>
+            <div class="status-indicator" id="connection-status">
+                <i class="fas fa-circle"></i>
+                <span>CONNECTING...</span>
+            </div>
+        </div>
+        <div class="stream-container">
+            <div class="stream-wrapper">
+                <img id="camera-stream" src="/stream" alt="Live Camera Feed" onerror="handleStreamError(this)">
+                <div class="stream-placeholder" id="stream-placeholder">
+                    <i class="fas fa-video-slash" style="font-size: 48px;"></i>
+                    <span>Connecting to camera...</span>
+                </div>
+                <div class="stream-controls">
+                    <button class="control-btn" onclick="refreshCameraStream()" title="Refresh Stream" id="refresh-btn">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                    <button class="control-btn" onclick="toggleFullscreen()" title="Fullscreen">
+                        <i class="fas fa-expand"></i>
+                    </button>
+                </div>
+                <div class="stream-overlay">
+                    <div id="face_result" class="recognition-info">
+                        <div class="spinner"></div>
+                        <span>Initializing...</span>
+                    </div>
+                    <div class="ai-badge">
+                        <i class="fas fa-brain"></i>
+                        <span>AI Ready</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cards Grid -->
+    <div class="cards-grid">
+        <!-- Profile Card -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-icon">
+                    <i class="fas fa-user"></i>
+                </div>
+                <h3>Profile</h3>
+            </div>
+            <div class="card-body">
+                <div class="profile-content">
+                    <div class="profile-avatar">{{ user["name"][0] }}</div>
+                    <div class="profile-name">{{ user["name"] }}</div>
+                    <div class="profile-role">
+                        <i class="fas fa-user-tag"></i>
+                        {{ user.get("role", "User") }}
+                    </div>
+                    
+                    <div class="profile-info">
+                        <div class="info-item">
+                            <i class="fas fa-envelope"></i>
+                            <span class="info-label">Email</span>
+                            <span class="info-value">{{ user["email"] or "Not set" }}</span>
+                        </div>
+                        <div class="info-item">
+                            <i class="fas fa-phone"></i>
+                            <span class="info-label">Phone</span>
+                            <span class="info-value">{{ user["phone"] or "Not set" }}</span>
+                        </div>
+                        <div class="info-item">
+                            <i class="fas fa-map-marker-alt"></i>
+                            <span class="info-label">Address</span>
+                            <span class="info-value">{{ user["address"] or 'Not set' }}</span>
+                        </div>
+                    </div>
+
+                    <button class="btn mt-auto" onclick="window.location.href='{{ url_for('profile') }}'">
+                        <i class="fas fa-edit"></i>
+                        Edit Profile
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Device Card -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-icon">
+                    <i class="fas fa-microchip"></i>
+                </div>
+                <h3>Device</h3>
+            </div>
+            <div class="card-body">
+                {% if devices and devices|length > 0 %}
+                {% set device = devices[0] %}
+                <div class="device-header">
+                    <div class="device-icon">
+                        <i class="fas fa-robot"></i>
+                    </div>
+                    <div class="device-info">
+                        <h4>{{ device.device_name }}</h4>
+                        <p>
+                            <i class="fas fa-sim-card"></i>
+                            {{ device.sim_number or "No SIM" }}
+                        </p>
+                    </div>
+                </div>
+
+                <div class="device-status" id="device-status-indicator">
+                    <i class="fas fa-sync-alt fa-spin"></i>
+                    <span>CHECKING...</span>
+                </div>
+
+                <div class="features-grid">
+                    <div class="feature">
+                        <i class="fas fa-robot"></i>
+                        <span>Face Recognition</span>
+                    </div>
+                    <div class="feature">
+                        <i class="fas fa-video"></i>
+                        <span>Live Stream</span>
+                    </div>
+                    <div class="feature">
+                        <i class="fas fa-satellite"></i>
+                        <span>GPS Tracking</span>
+                    </div>
+                    <div class="feature">
+                        <i class="fas fa-shield-alt"></i>
+                        <span>Security</span>
+                    </div>
+                </div>
+
+                <div class="device-actions mt-auto">
+                    <button class="btn btn-secondary" onclick="window.location.href='{{ url_for('device') }}'">
+                        <i class="fas fa-cog"></i>
+                        Settings
+                    </button>
+                    <button class="btn" onclick="restartDevice({{ device.deviceID if device.deviceID else 0 }})" style="background: var(--danger);">
+                        <i class="fas fa-redo"></i>
+                        Restart
+                    </button>
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <div class="empty-icon">
+                        <i class="fas fa-robot"></i>
+                    </div>
+                    <div class="empty-text">No device connected</div>
+                    <button class="btn" onclick="window.location.href='{{ url_for('device') }}'">
+                        <i class="fas fa-plus"></i>
+                        Add Device
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Location Card -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-icon">
+                    <i class="fas fa-map-marker-alt"></i>
+                </div>
+                <h3>Location</h3>
+            </div>
+            <div class="card-body">
+                {% if devices and devices|length > 0 and devices[0].lat is not none %}
+                {% set device = devices[0] %}
+                <div class="location-content">
+                    <div class="location-icon">
+                        <i class="fas fa-location-dot"></i>
+                    </div>
+                    <div class="coordinates">
+                        <div class="coordinate-row">
+                            <span class="coordinate-label">
+                                <i class="fas fa-globe-americas"></i> Latitude
+                            </span>
+                            <span class="coordinate-value" id="latValue">{{ device.lat }}</span>
+                        </div>
+                        <div class="coordinate-row">
+                            <span class="coordinate-label">
+                                <i class="fas fa-globe-europe"></i> Longitude
+                            </span>
+                            <span class="coordinate-value" id="lngValue">{{ device.lng }}</span>
+                        </div>
+                    </div>
+                    <div class="location-actions mt-auto">
+                        <button class="btn btn-outline" onclick="window.open('https://www.google.com/maps?q={{ device.lat }},{{ device.lng }}', '_blank')">
+                            <i class="fas fa-external-link-alt"></i>
+                            View on Maps
+                        </button>
+                        <button class="btn" onclick="window.location.href='{{ url_for('location') }}'">
+                            <i class="fas fa-map"></i>
+                            Full Map
+                        </button>
+                    </div>
+                    <div class="update-time">
+                        <i class="fas fa-clock"></i>
+                        <span id="lastUpdateTime">Updated: {{ now.strftime('%H:%M') if now else '' }}</span>
+                    </div>
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <div class="empty-icon">
+                        <i class="fas fa-map-marker-alt"></i>
+                    </div>
+                    <div class="empty-text">No location data</div>
+                    <button class="btn" onclick="window.location.href='{{ url_for('location') }}'">
+                        <i class="fas fa-map"></i>
+                        View Map
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+<script>
+    const socket = io();
+    let deviceStatusInterval = null;
+    let streamStatusInterval = null;
+    const DEVICE_CHECK_INTERVAL = 10000; // 10 giây kiểm tra trạng thái thiết bị 1 lần
+    const STREAM_CHECK_INTERVAL = 5000; // 5 giây kiểm tra stream
+    const DEVICE_TIMEOUT = 30000; // 30 giây không có heartbeat là offline
+
+    // Initialize dashboard
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('🚀 Initializing dashboard with device status monitoring...');
+        
+        // Khởi tạo trạng thái
+        setConnectionStatus('checking');
+        setDeviceStatus('checking');
+        
+        // Bắt đầu kiểm tra trạng thái thiết bị (QUAN TRỌNG)
+        startDeviceStatusMonitoring();
+        
+        // Kiểm tra stream (riêng biệt)
+        startStreamMonitoring();
+        
+        // Cập nhật location
+        updateLocation();
+        setInterval(updateLocation, 30000);
+        
+        console.log('✅ Dashboard initialized');
+    });
+
+    // =========================================================
+    // FUNCTIONS FOR DEVICE STATUS (trạng thái thiết bị thực sự)
+    // =========================================================
+
+    // Set device status (trạng thái thiết bị thực sự)
+    function setDeviceStatus(status) {
+        const statusEl = document.getElementById('device-status-indicator');
+        if (!statusEl) return;
+        
+        statusEl.className = 'device-status';
+        
+        switch(status) {
+            case 'online':
+                statusEl.innerHTML = '<i class="fas fa-check-circle"></i><span>DEVICE ONLINE</span>';
+                statusEl.style.background = 'var(--success)';
+                break;
+            case 'offline':
+                statusEl.innerHTML = '<i class="fas fa-times-circle"></i><span>DEVICE OFFLINE</span>';
+                statusEl.style.background = 'var(--danger)';
+                break;
+            case 'checking':
+                statusEl.innerHTML = '<i class="fas fa-sync-alt fa-spin"></i><span>CHECKING DEVICE...</span>';
+                statusEl.style.background = 'var(--warning)';
+                break;
+        }
+    }
+
+    // Kiểm tra trạng thái thiết bị từ server
+    async function checkDeviceStatus() {
+        try {
+            const response = await fetch('/api/device/status');
+            if (!response.ok) {
+                throw new Error('Failed to fetch device status');
+            }
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                // Kiểm tra nếu có lastHeartbeat và còn trong thời gian timeout
+                if (data.lastHeartbeat) {
+                    const lastHeartbeatTime = new Date(data.lastHeartbeat).getTime();
+                    const currentTime = Date.now();
+                    const timeDiff = currentTime - lastHeartbeatTime;
+                    
+                    if (timeDiff < DEVICE_TIMEOUT) {
+                        // Thiết bị online
+                        setDeviceStatus('online');
+                        console.log(`✅ Device is online (last heartbeat: ${Math.floor(timeDiff/1000)}s ago)`);
+                    } else {
+                        // Thiết bị offline
+                        setDeviceStatus('offline');
+                        console.log(`❌ Device is offline (last heartbeat: ${Math.floor(timeDiff/1000)}s ago)`);
+                    }
+                } else {
+                    // Không có heartbeat data
+                    setDeviceStatus('offline');
+                    console.log('❌ No heartbeat data available');
+                }
+            } else {
+                setDeviceStatus('offline');
+                console.log('❌ Failed to get device status from server');
+            }
+        } catch (error) {
+            console.error('❌ Error checking device status:', error);
+            setDeviceStatus('offline');
+        }
+    }
+
+    // Bắt đầu monitoring trạng thái thiết bị
+    function startDeviceStatusMonitoring() {
+        // Clear existing interval
+        if (deviceStatusInterval) {
+            clearInterval(deviceStatusInterval);
+        }
+        
+        // Kiểm tra ngay lập tức
+        checkDeviceStatus();
+        
+        // Sau đó kiểm tra định kỳ
+        deviceStatusInterval = setInterval(checkDeviceStatus, DEVICE_CHECK_INTERVAL);
+    }
+
+    // =========================================================
+    // FUNCTIONS FOR STREAM STATUS (trạng thái camera stream)
+    // =========================================================
+
+    // Set connection status (cho stream camera)
+    function setConnectionStatus(status) {
+        const statusEl = document.getElementById('connection-status');
+        const placeholder = document.getElementById('stream-placeholder');
+        
+        if (!statusEl) return;
+        
+        statusEl.className = 'status-indicator';
+        
+        switch(status) {
+            case 'connected':
+                statusEl.innerHTML = '<i class="fas fa-circle"></i><span>STREAM ONLINE</span>';
+                statusEl.classList.add('success');
+                if (placeholder) placeholder.classList.add('hidden');
+                break;
+            case 'disconnected':
+                statusEl.innerHTML = '<i class="fas fa-circle"></i><span>STREAM OFFLINE</span>';
+                statusEl.classList.add('offline');
+                if (placeholder) placeholder.classList.remove('hidden');
+                break;
+            case 'checking':
+                statusEl.innerHTML = '<i class="fas fa-circle"></i><span>CONNECTING STREAM...</span>';
+                statusEl.classList.add('connecting');
+                if (placeholder) placeholder.classList.remove('hidden');
+                break;
+        }
+    }
+
+    // Kiểm tra trạng thái stream
+    function checkStreamStatus() {
+        const stream = document.getElementById('camera-stream');
+        const refreshBtn = document.getElementById('refresh-btn');
+        
+        if (!stream) {
+            setConnectionStatus('disconnected');
+            return;
+        }
+        
+        // Kiểm tra nếu stream đã load xong
+        if (stream.complete && stream.naturalHeight > 0) {
+            setConnectionStatus('connected');
+            
+            if (refreshBtn) {
+                refreshBtn.disabled = false;
+            }
+        } else {
+            setConnectionStatus('disconnected');
+        }
+    }
+
+    // Bắt đầu monitoring stream
+    function startStreamMonitoring() {
+        // Clear existing interval
+        if (streamStatusInterval) {
+            clearInterval(streamStatusInterval);
+        }
+        
+        // Kiểm tra ngay lập tức
+        checkStreamStatus();
+        
+        // Sau đó kiểm tra định kỳ
+        streamStatusInterval = setInterval(checkStreamStatus, STREAM_CHECK_INTERVAL);
+    }
+
+    // =========================================================
+    // COMMON FUNCTIONS
+    // =========================================================
+
+    // Refresh camera stream
+    function refreshCameraStream() {
+        const stream = document.getElementById('camera-stream');
+        const refreshBtn = document.getElementById('refresh-btn');
+        
+        if (!stream) return;
+        
+        if (refreshBtn) {
+            refreshBtn.disabled = true;
+            refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        }
+        
+        setConnectionStatus('checking');
+        
+        const originalSrc = stream.src.split('?')[0];
+        const timestamp = Date.now();
+        const newSrc = originalSrc + '?refresh=' + timestamp;
+        
+        console.log('🔄 Refreshing camera stream...');
+        
+        // Tạo image mới để preload
+        const newImage = new Image();
+        newImage.onload = function() {
+            stream.src = newSrc;
+            
+            if (refreshBtn) {
+                setTimeout(() => {
+                    refreshBtn.disabled = false;
+                    refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i>';
+                }, 2000);
+            }
+            
+            showNotification('Stream refreshed', 'success');
+        };
+        
+        newImage.onerror = function() {
+            console.error('❌ Failed to refresh stream');
+            if (refreshBtn) {
+                refreshBtn.disabled = false;
+                refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i>';
+            }
+            showNotification('Failed to refresh stream', 'error');
+        };
+        
+        newImage.src = newSrc;
+    }
+
+    // Handle stream error
+    function handleStreamError(img) {
+        console.log('❌ Stream image error');
+        setConnectionStatus('disconnected');
+    }
+
+    // Toggle fullscreen
+    function toggleFullscreen() {
+        const streamWrapper = document.querySelector('.stream-wrapper');
+        if (!streamWrapper) return;
+        
+        const btn = event?.target?.closest('.control-btn');
+        if (btn) {
+            if (!document.fullscreenElement) {
+                if (streamWrapper.requestFullscreen) {
+                    streamWrapper.requestFullscreen();
+                } else if (streamWrapper.webkitRequestFullscreen) {
+                    streamWrapper.webkitRequestFullscreen();
+                } else if (streamWrapper.mozRequestFullScreen) {
+                    streamWrapper.mozRequestFullScreen();
+                }
+                btn.innerHTML = '<i class="fas fa-compress"></i>';
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if (document.webkitExitFullscreen) {
+                    document.webkitExitFullscreen();
+                } else if (document.mozCancelFullScreen) {
+                    document.mozCancelFullScreen();
+                }
+                btn.innerHTML = '<i class="fas fa-expand"></i>';
+            }
+        }
+    }
+
+    // Update location
+    async function updateLocation() {
+        try {
+            const response = await fetch('/api/get-latest-location');
+            if (!response.ok) throw new Error('Network response was not ok');
+            
+            const data = await response.json();
+            
+            if (data.success && data.location) {
+                const latEl = document.getElementById('latValue');
+                const lngEl = document.getElementById('lngValue');
+                const timeEl = document.getElementById('lastUpdateTime');
+                
+                if (latEl && lngEl) {
+                    latEl.textContent = parseFloat(data.location.lat).toFixed(6);
+                    lngEl.textContent = parseFloat(data.location.lng).toFixed(6);
+                    
+                    if (timeEl) {
+                        const now = new Date();
+                        timeEl.textContent = `Updated: ${now.toLocaleTimeString('vi-VN', { 
+                            hour: '2-digit', 
+                            minute: '2-digit' 
+                        })}`;
+                    }
+                }
+            }
+        } catch (error) {
+            console.log('⚠️ Location update failed:', error);
+        }
+    }
+
+    // Face recognition - INSTANT UPDATE
+    socket.on("recognize_event", (data) => {
+        const faceResult = document.getElementById("face_result");
+        if (!faceResult) return;
+
+        const confidence = (data.confidence * 100).toFixed(1);
+        
+        if (data.name === "UNKNOWN" || data.confidence < 0.5) {
+            faceResult.innerHTML = `
+                <i class="fas fa-user-slash" style="color: var(--danger);"></i>
+                <span>Unknown (${confidence}%)</span>
+            `;
+            showNotification('Unknown person detected', 'warning');
+        } else {
+            faceResult.innerHTML = `
+                <i class="fas fa-user-check" style="color: var(--success);"></i>
+                <span>${data.name} (${confidence}%)</span>
+            `;
+            showNotification(`${data.name} recognized`, 'success');
+        }
+    });
+
+    // Restart device
+    function restartDevice(deviceId) {
+        if (!deviceId || deviceId === 0) {
+            showNotification('Device ID not found', 'error');
+            return;
+        }
+
+        if (!confirm('Restart device? It will be offline for 30-60 seconds.')) {
+            return;
+        }
+
+        const btn = event.target.closest('button');
+        const original = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Restarting...';
+        btn.disabled = true;
+
+        fetch(`/api/device/restart/${deviceId}`, { method: 'POST' })
+            .then(res => {
+                if (!res.ok) throw new Error('Network response was not ok');
+                return res.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    showNotification('Device restarting...', 'success');
+                    setTimeout(() => {
+                        // Refresh device status sau khi restart
+                        checkDeviceStatus();
+                        btn.innerHTML = original;
+                        btn.disabled = false;
+                    }, 5000);
+                } else {
+                    showNotification('Failed to restart', 'error');
+                    btn.innerHTML = original;
+                    btn.disabled = false;
+                }
+            })
+            .catch(error => {
+                showNotification('Network error', 'error');
+                btn.innerHTML = original;
+                btn.disabled = false;
+            });
+    }
+
+    // Show notification
+    function showNotification(message, type = 'info') {
+        // Remove existing notifications
+        document.querySelectorAll('.notification').forEach(n => n.remove());
+        
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        
+        const icons = {
+            'success': 'check-circle',
+            'error': 'exclamation-circle',
+            'warning': 'exclamation-triangle',
+            'info': 'info-circle'
+        };
+        
+        notification.innerHTML = `
+            <i class="fas fa-${icons[type] || 'info-circle'}"></i>
+            <span>${message}</span>
+            <button class="close-btn" onclick="this.parentElement.remove()">
+                <i class="fas fa-times"></i>
+            </button>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        // Auto remove after 5 seconds
+        setTimeout(() => {
+            if (notification.parentElement) {
+                notification.remove();
+            }
+        }, 5000);
+    }
+
+    // Handle fullscreen change
+    document.addEventListener('fullscreenchange', function() {
+        const btn = document.querySelector('.control-btn:nth-child(2)');
+        if (btn) {
+            btn.innerHTML = document.fullscreenElement ? 
+                '<i class="fas fa-compress"></i>' : 
+                '<i class="fas fa-expand"></i>';
+        }
+    });
+
+    // Cleanup
+    window.addEventListener('beforeunload', function() {
+        if (deviceStatusInterval) {
+            clearInterval(deviceStatusInterval);
+        }
+        if (streamStatusInterval) {
+            clearInterval(streamStatusInterval);
+        }
+        if (socket.connected) {
+            socket.disconnect();
+        }
+    });
+</script>
+
+{% endblock %}
